@@ -44,6 +44,12 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
         password: event.password,
       );
       emit(AuthAuthenticated(user));
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        emit(const AuthError('There is no such user'));
+      } else {
+        emit(AuthError(e.message ?? 'Login failed'));
+      }
     } catch (e) {
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));
     }

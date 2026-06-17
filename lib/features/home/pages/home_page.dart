@@ -13,6 +13,7 @@ import 'package:splitico/features/group/pages/create_group_page.dart';
 import 'package:splitico/features/group/pages/groups_page.dart';
 import 'package:splitico/features/group/pages/group_details_page.dart';
 import 'package:splitico/features/settlement/pages/balances_page.dart';
+import 'package:splitico/features/profile/pages/profile_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -306,16 +307,7 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       case 4:
-        return const Center(
-          child: Text(
-            'Profile Screen',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
-            ),
-          ),
-        );
+        return const ProfilePage();
       default:
         return const Center(
           child: Text('Unknown Screen'),
