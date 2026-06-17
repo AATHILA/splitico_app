@@ -6,23 +6,24 @@ import 'package:splitico/features/home/pages/home_page.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
-import 'signup_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -34,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final password = _passwordController.text;
 
       context.read<AuthBloc>().add(
-            LoginRequested(email: email, password: password),
+            SignUpRequested(email: email, password: password),
           );
     }
   }
@@ -54,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
           if (state is AuthAuthenticated) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Login Success'),
+                content: Text('Signup Success'),
                 backgroundColor: AppColors.expensePositive,
                 behavior: SnackBarBehavior.floating,
               ),
@@ -137,63 +138,90 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: AppSizes.xxl + 4),
 
-                    // App Logo and Brand name
                     Row(
                       children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.25),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          alignment: Alignment.center,
-                          child: const Text(
-                            '💸',
-                            style: TextStyle(fontSize: 20),
+                        // Back Arrow Button
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.arrow_back_rounded,
+                              color: Color(0xFF1E293B),
+                              size: 20,
+                            ),
                           ),
                         ),
                         const SizedBox(width: AppSizes.m),
+                        // Title
                         const Text(
-                          'Splitiko',
+                          'Create account',
                           style: TextStyle(
-                            fontSize: 24,
+                            fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.primary,
+                            color: Color(0xFF1E293B),
                             letterSpacing: -0.5,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: AppSizes.xxxl),
+                    const SizedBox(height: AppSizes.l),
 
-                    // Header welcoming title
+                    // Subtitle
                     const Text(
-                      'Welcome back',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E293B),
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Sign in to your account',
+                      'Join thousands splitting smarter',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
                         color: Color(0xFF64748B),
                       ),
                     ),
-                    const SizedBox(height: AppSizes.xxxl),
+                    const SizedBox(height: AppSizes.xxl),
+
+                    // FULL NAME input field
+                    const Text(
+                      'FULL NAME',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: AppSizes.s),
+                    TextFormField(
+                      controller: _nameController,
+                      keyboardType: TextInputType.name,
+                      enabled: !isLoading,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E293B),
+                      ),
+                      decoration: _buildInputDecoration('Enter your full name'),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your name';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: AppSizes.xl),
 
                     // EMAIL input field
                     const Text(
@@ -261,31 +289,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: AppSizes.m),
 
-                    // Forgot password link
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: GestureDetector(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Forgot Password link clicked'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          'Forgot password?',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                    ),
+                    // Password Strength Indicator Segments
+                    _buildPasswordStrengthIndicator(),
                     const SizedBox(height: AppSizes.xxl + 4),
 
-                    // Sign In Button
+                    // Create Account Button
                     ElevatedButton(
                       onPressed: isLoading ? null : _submitForm,
                       style: ElevatedButton.styleFrom(
@@ -307,92 +315,48 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             )
                           : const Text(
-                              'Sign In',
+                              'Create Account',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
                     ),
-                    const SizedBox(height: AppSizes.xxl),
+                    const SizedBox(height: AppSizes.l),
 
-                    // Divider with "or"
-                    Row(
-                      children: [
-                        const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'or',
-                            style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF94A3B8)),
+                    // Terms and Privacy disclaimer text
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: RichText(
+                        textAlign: TextAlign.center,
+                        text: const TextSpan(
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF94A3B8),
+                            height: 1.4,
                           ),
-                        ),
-                        const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
-                      ],
-                    ),
-                    const SizedBox(height: AppSizes.xxl),
-
-                    // Continue with Google Button
-                    OutlinedButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Continue with Google clicked'),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF1E293B),
-                        minimumSize: const Size(double.infinity, 54),
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 20,
-                            height: 20,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEA4335), // Google red
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: const Text(
-                              'G',
+                          children: [
+                            TextSpan(text: 'By creating an account, you agree to our\n'),
+                            TextSpan(
+                              text: 'Terms & Privacy Policy',
                               style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                          ),
-                          const SizedBox(width: AppSizes.m),
-                          const Text(
-                            'Continue with Google',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: AppSizes.xxl + 8),
 
-                    // Sign Up toggle link
+                    // Already have an account footer toggle link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Text(
-                          "Don't have an account? ",
+                          "Already have an account? ",
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -403,14 +367,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           onTap: isLoading
                               ? null
                               : () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => const SignUpScreen(),
-                                    ),
-                                  );
+                                  Navigator.of(context).pop();
                                 },
                           child: const Text(
-                            'Sign Up',
+                            'Sign In',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
@@ -484,6 +444,59 @@ class _LoginScreenState extends State<LoginScreen> {
         borderRadius: BorderRadius.circular(16),
         borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
       ),
+    );
+  }
+
+  Widget _buildPasswordStrengthIndicator() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444), // Red
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B), // Orange
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981), // Green
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Strong password',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF10B981), // Green label
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

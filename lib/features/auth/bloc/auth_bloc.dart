@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:splitico/core/bloc/base_bloc.dart';
+import '../models/app_user.dart';
 import '../repository/auth_repository.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -51,16 +54,32 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
+    
     try {
-      final user = await _authRepository.signup(
-        email: event.email,
-        password: event.password,
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: event.email,
+            password: event.password,
+          );
+
+      debugPrint("SUCCESS");
+      debugPrint(credential.user?.uid);
+      debugPrint(credential.user?.email);
+
+      final user = AppUser(
+        uid: credential.user!.uid,
+        email: credential.user!.email ?? event.email,
+        displayName: credential.user!.displayName ?? event.email.split('@').first,
       );
       emit(AuthAuthenticated(user));
     } catch (e) {
+      debugPrint("ERROR: $e");
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));
     }
-  }
+  }    
+     
+    
+  
 
   Future<void> _onSignOutRequested(
     SignOutRequested event,

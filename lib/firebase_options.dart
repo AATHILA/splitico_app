@@ -31,45 +31,44 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'mock-api-key-for-local-dev-only-value',
-    appId: '1:123456789000:web:abcdef123456',
-    messagingSenderId: '123456789000',
-    projectId: 'splitico',
-    authDomain: 'splitico.firebaseapp.com',
-    storageBucket: 'splitico.appspot.com',
+    apiKey: 'AIzaSyBVlcvg6SyYZkRYFPxL4BQiLRs4nS58A-c',
+    appId: '1:794278224451:web:9fc26a15b7379155f1eaf6',
+    messagingSenderId: '794278224451',
+    projectId: 'splitico-5d46f',
+    authDomain: 'splitico-5d46f.firebaseapp.com',
+    storageBucket: 'splitico-5d46f.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'mock-api-key-for-local-dev-only-value',
-    appId: '1:123456789000:android:abcdef123456',
-    messagingSenderId: '123456789000',
-    projectId: 'splitico',
-    storageBucket: 'splitico.appspot.com',
+    apiKey: 'AIzaSyAjL1sQNc1ChR1R4-b8dwI0ftEMTlfjT_4',
+    appId: '1:794278224451:android:b45d6fea9550d2e4f1eaf6',
+    messagingSenderId: '794278224451',
+    projectId: 'splitico-5d46f',
+    storageBucket: 'splitico-5d46f.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'mock-api-key-for-local-dev-only-value',
-    appId: '1:123456789000:ios:abcdef123456',
-    messagingSenderId: '123456789000',
-    projectId: 'splitico',
-    storageBucket: 'splitico.appspot.com',
+    apiKey: 'AIzaSyBF3A01pSNA-fwRrdDKIO3jjxNwvoPC5rA',
+    appId: '1:794278224451:ios:8d2a30636368e280f1eaf6',
+    messagingSenderId: '794278224451',
+    projectId: 'splitico-5d46f',
+    storageBucket: 'splitico-5d46f.firebasestorage.app',
     iosBundleId: 'com.example.splitico',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'mock-api-key-for-local-dev-only-value',
-    appId: '1:123456789000:ios:abcdef123456',
-    messagingSenderId: '123456789000',
-    projectId: 'splitico',
-    storageBucket: 'splitico.appspot.com',
+    apiKey: 'AIzaSyBF3A01pSNA-fwRrdDKIO3jjxNwvoPC5rA',
+    appId: '1:794278224451:ios:8d2a30636368e280f1eaf6',
+    messagingSenderId: '794278224451',
+    projectId: 'splitico-5d46f',
+    storageBucket: 'splitico-5d46f.firebasestorage.app',
     iosBundleId: 'com.example.splitico',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'mock-api-key-for-local-dev-only-value',
-    appId: '1:123456789000:windows:abcdef123456',
-    messagingSenderId: '123456789000',
-    projectId: 'splitico',
-    storageBucket: 'splitico.appspot.com',
+    apiKey: 'AIzaSyBVlcvg6SyYZkRYFPxL4BQiLRs4nS58A-c',
+    appId: '1:794278224451:web:0e47e595e53bb485f1eaf6',
+    messagingSenderId: '794278224451',
+    projectId: 'splitico-5d46f',
+    authDomain: 'splitico-5d46f.firebaseapp.com',
+    storageBucket: 'splitico-5d46f.firebasestorage.app',
   );
 }

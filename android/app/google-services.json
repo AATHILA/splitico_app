@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "794278224451",
+    "project_id": "splitico-5d46f",
+    "storage_bucket": "splitico-5d46f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:794278224451:android:b45d6fea9550d2e4f1eaf6",
+        "android_client_info": {
+          "package_name": "com.example.splitico"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjL1sQNc1ChR1R4-b8dwI0ftEMTlfjT_4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
