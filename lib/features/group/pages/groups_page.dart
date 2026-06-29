@@ -3,6 +3,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import 'create_group_page.dart';
 import 'group_details_page.dart';
+import '../../../core/models/group.dart';
 
 class GroupsPage extends StatefulWidget {
   const GroupsPage({super.key});
@@ -88,11 +89,37 @@ class _GroupsPageState extends State<GroupsPage> {
                     ),
                   ),
                   ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
+                    onPressed: () async {
+                      final result = await Navigator.push<GroupModel>(
                         context,
                         MaterialPageRoute(builder: (context) => const CreateGroupPage()),
                       );
+                      if (result != null) {
+                        final emojiMap = {
+                          'Travel': '🌴',
+                          'Home': '🏠',
+                          'Friends': '👥',
+                          'Family': '👪',
+                        };
+                        final emojiBgMap = {
+                          'Travel': const Color(0xFFEEF2FF),
+                          'Home': const Color(0xFFECFDF5),
+                          'Friends': const Color(0xFFEFF6FF),
+                          'Family': const Color(0xFFFFF1F2),
+                        };
+                        setState(() {
+                          _allGroups.add({
+                            'name': result.name,
+                            'category': result.type,
+                            'emoji': emojiMap[result.type] ?? '👥',
+                            'emojiBg': emojiBgMap[result.type] ?? const Color(0xFFEFF6FF),
+                            'membersCount': result.members.length,
+                            'expensesCount': 0,
+                            'balance': 0.0,
+                            'balanceLabel': 'settled up',
+                          });
+                        });
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:splitico/core/constants/app_colors.dart';
 import 'package:splitico/core/constants/app_sizes.dart';
+import 'package:splitico/core/models/group.dart';
 import 'package:splitico/core/theme/text_styles.dart';
 import 'package:splitico/features/auth/bloc/auth_bloc.dart';
 import 'package:splitico/features/auth/bloc/auth_state.dart';
@@ -24,6 +25,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _currentTabIndex = 0;
+  final List<GroupModel> _customGroups = [];
+
 
   @override
   Widget build(BuildContext context) {
@@ -43,13 +46,19 @@ class _HomePageState extends State<HomePage> {
       ),
       floatingActionButton: _currentTabIndex == 0
           ? FloatingActionButton(
-              onPressed: () {
-                Navigator.push(
+              onPressed: () async {
+                final result = await
+                Navigator.push<GroupModel>(
                   context,
                   MaterialPageRoute(
                     builder: (context) => const CreateGroupPage(),
                   ),
                 );
+                if (result!= null) {
+                  setState(() {
+                    _customGroups.add(result);
+                  });
+                }
               },
               backgroundColor: AppColors.primary,
               elevation: 6,
@@ -74,8 +83,7 @@ class _HomePageState extends State<HomePage> {
             // TODO: Replace with dynamic user profile data fetched from database/backend.
             String displayName = 'Rahul Kumar';
             if (state is AuthAuthenticated && state.user != null) {
-              displayName =
-                  state.user!.displayName ?? state.user!.email.split('@').first;
+              displayName = state.user!.resolvedDisplayName;
               // Capitalize name nicely
               if (displayName.isNotEmpty) {
                 displayName =
@@ -224,8 +232,18 @@ class _HomePageState extends State<HomePage> {
                                 iconColor: AppColors.groupFriendsText,
                                 onTap: () {},
                               ),
-                            ],
-                          ),
+                            ..._customGroups.map((group)=>Padding(
+      padding: const EdgeInsets.only(left: AppSizes.m),
+      child: GroupChip(
+        label: group.name,
+        icon: group.type == 'Travel' ? Icons.flight_takeoff : Icons.group,
+        backgroundColor: AppColors.groupGoaBg,
+        textColor: AppColors.groupGoaText,
+        iconColor: AppColors.groupGoaText,
+        onTap: () {},
+      ),
+    )),
+                      ]),
                         ),
                         const SizedBox(height: AppSizes.xxl + 8),
                         // TODO: Fetch recent expenses dynamically from database/backend.

@@ -8,4 +8,14 @@ class AppUser {
     required this.email,
     this.displayName,
   });
+
+  String get resolvedDisplayName {
+    if (displayName != null && displayName!.trim().isNotEmpty) {
+      return displayName!.trim();
+    }
+    if (email.trim().isNotEmpty && email.contains('@')) {
+      return email.split('@').first.trim();
+    }
+    return 'User';
+  }
 }

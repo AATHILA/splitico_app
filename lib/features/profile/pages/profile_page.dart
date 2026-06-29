@@ -101,8 +101,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
         if (state is AuthAuthenticated && state.user != null) {
           final user = state.user!;
-          email = user.email;
-          displayName = user.displayName ?? user.email.split('@').first;
+          email = user.email.isNotEmpty ? user.email : 'No email';
+          displayName = user.resolvedDisplayName;
           
           // Nicely capitalize display name
           if (displayName.isNotEmpty) {

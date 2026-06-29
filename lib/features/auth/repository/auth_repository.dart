@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:splitico/features/auth/models/app_user.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -58,4 +60,73 @@ class AuthRepository {
     await Future.delayed(const Duration(milliseconds: 300));
     _currentUser = null;
   }
+}
+
+
+class PhoneAuthResult {
+  final String? verificationId;
+  final UserCredential? userCredential;
+
+  PhoneAuthResult({this.verificationId, this.userCredential});
+}
+
+Future<PhoneAuthResult> sendOtp({
+  required String phoneNumber,
+}) async {
+  final completer = Completer<PhoneAuthResult>();
+
+  debugPrint('Starting verifyPhoneNumber for $phoneNumber');
+
+  await FirebaseAuth.instance.verifyPhoneNumber(
+    phoneNumber: phoneNumber,
+
+    verificationCompleted: (credential) async {
+      debugPrint('verifyPhoneNumber: verificationCompleted triggered');
+      try {
+        final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+        if (!completer.isCompleted) {
+          completer.complete(PhoneAuthResult(userCredential: userCredential));
+        }
+      } catch (e) {
+        debugPrint('Error in verificationCompleted sign-in: $e');
+        if (!completer.isCompleted) {
+          completer.completeError(e);
+        }
+      }
+    },
+
+    verificationFailed: (e) {
+      debugPrint('verifyPhoneNumber: verificationFailed triggered: ${e.message}');
+      if (!completer.isCompleted) {
+        completer.completeError(Exception(e.message ?? 'Verification failed'));
+      }
+    },
+
+    codeSent: (verificationId, resendToken) {
+      debugPrint('verifyPhoneNumber: codeSent triggered with verificationId: $verificationId');
+      if (!completer.isCompleted) {
+        completer.complete(PhoneAuthResult(verificationId: verificationId));
+      }
+    },
+
+    codeAutoRetrievalTimeout: (verificationId) {
+      debugPrint('verifyPhoneNumber: codeAutoRetrievalTimeout triggered');
+    },
+  );
+
+  return completer.future;
+}
+
+Future<UserCredential> verifyOtp({
+  required String verificationId,
+  required String otp,
+}) async {
+  final credential =
+      PhoneAuthProvider.credential(
+    verificationId: verificationId,
+    smsCode: otp,
+  );
+
+  return FirebaseAuth.instance
+      .signInWithCredential(credential);
 }
