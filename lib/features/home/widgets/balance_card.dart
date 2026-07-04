@@ -45,7 +45,7 @@ class BalanceCard extends StatelessWidget {
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      '₹${youOwe.toStringAsFixed(0)}',
+                      '₹${youOwe.toStringAsFixed(2)}',
                       style: AppTextStyles.oweAmount,
                     ),
                   ),
@@ -68,7 +68,7 @@ class BalanceCard extends StatelessWidget {
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      '₹${owedToYou.toStringAsFixed(0)}',
+                      '₹${owedToYou.toStringAsFixed(2)}',
                       style: AppTextStyles.owedAmount,
                     ),
                   ),
@@ -91,7 +91,7 @@ class BalanceCard extends StatelessWidget {
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      '$netPrefix₹${netBalance.toStringAsFixed(0)}',
+                      '$netPrefix₹${netBalance.toStringAsFixed(2)}',
                       style: AppTextStyles.netBalance,
                     ),
                   ),

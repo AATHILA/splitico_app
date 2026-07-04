@@ -1,60 +1,70 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../group/bloc/group_bloc.dart';
+import '../../group/bloc/group_event.dart';
+import '../../../core/models/expense.dart';
+import '../../../core/models/group.dart';
 
 class AddExpensePage extends StatefulWidget {
-  const AddExpensePage({super.key});
+  final bool isEditing;
+  final GroupModel group;
+  const AddExpensePage({
+    super.key,
+    this.isEditing = false,
+    required this.group,
+  });
 
   @override
   State<AddExpensePage> createState() => _AddExpensePageState();
 }
 
 class _AddExpensePageState extends State<AddExpensePage> {
-  final _titleController = TextEditingController(text: 'Dinner at Spice Garden 🍽️');
-  final _amountController = TextEditingController(text: '2,400');
+  late final TextEditingController _titleController;
+  late final TextEditingController _amountController;
 
   String _selectedCategory = 'Food';
   String _selectedSplitType = 'Equal';
 
   // List of group members
-  final List<Map<String, dynamic>> _members = [
-    {
-      'id': 'arjun',
-      'name': 'Arjun',
-      'initial': 'A',
-      'color': const Color(0xFF7C3AED), // purple
-      'selected': true,
-    },
-    {
-      'id': 'riya',
-      'name': 'Riya',
-      'initial': 'R',
-      'color': const Color(0xFFEC4899), // pink
-      'selected': true,
-    },
-    {
-      'id': 'kiran',
-      'name': 'Kiran',
-      'initial': 'K',
-      'color': const Color(0xFF10B981), // green
-      'selected': false,
-    },
-    {
-      'id': 'athila',
-      'name': 'Athila',
-      'initial': 'A',
-      'color': const Color(0xFF4C49ED), // indigo
-      'selected': true,
-    },
-  ];
+  List<Map<String, dynamic>> _members = [];
 
   late Map<String, dynamic> _paidByMember;
 
   @override
   void initState() {
     super.initState();
-    // Default payer is Arjun
-    _paidByMember = _members.firstWhere((m) => m['id'] == 'arjun');
+
+    _titleController = TextEditingController(text: '');
+    _amountController = TextEditingController(text: '');
+
+    _members =
+        widget.group.members.map((member) {
+          return {
+            'id': member['name'].toString().toLowerCase(),
+            'name': member['name'],
+            'initial':
+                member['initial'] ??
+                (member['name'].isNotEmpty
+                    ? member['name'][0].toUpperCase()
+                    : '?'),
+            'color':
+                member['avatarBgColor'] ??
+                const Color(0xFF7C3AED), // Map avatarBgColor to color
+            'selected': true, // Default all members as selected for split
+          };
+        }).toList();
+    if (_members.isNotEmpty) {
+      _paidByMember = _members.first;
+    } else {
+      _paidByMember = {
+        'id': 'unknown',
+        'name': 'No members',
+        'initial': '?',
+        'color': Colors.grey,
+      };
+    }
   }
 
   @override
@@ -75,6 +85,58 @@ class _AddExpensePageState extends State<AddExpensePage> {
     final selectedCount = _members.where((m) => m['selected'] as bool).length;
     if (selectedCount == 0) return 0.0;
     return _currentAmount / selectedCount;
+  }
+
+  void _saveExpense() {
+    final title = _titleController.text.trim();
+    final amount = _currentAmount;
+
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter an expense title! ⚠️'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid amount! ⚠️'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // 1. Create the new expense model
+    final newExpense = ExpenseModel(
+      title: title,
+      amount: amount,
+      paidBy: _paidByMember['name'],
+      splitType: _selectedSplitType,
+      splitBetween: _members,
+      category: _selectedCategory,
+    );
+
+    // 2. Dispatch it to the GroupBloc
+    context.read<GroupBloc>().add(
+      AddExpense(groupName: widget.group.name, expense: newExpense),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Expense "$title" saved successfully! 🎉'),
+        backgroundColor: AppColors.expensePositive,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    Navigator.of(context).pop();
   }
 
   @override
@@ -142,6 +204,37 @@ class _AddExpensePageState extends State<AddExpensePage> {
                 ),
               ),
             ),
+
+            // Bottom Blue Save Button with White Text
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSizes.xxl,
+                AppSizes.s,
+                AppSizes.xxl,
+                AppSizes.xxl,
+              ),
+              child: ElevatedButton(
+                onPressed: _saveExpense,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 56),
+                  elevation: 2,
+                  shadowColor: AppColors.primary.withValues(alpha: 0.3),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusXL),
+                  ),
+                ),
+                child: const Text(
+                  'Save',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -180,7 +273,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                   width: 14,
                   height: 6,
                   decoration: BoxDecoration(
-                    color: Color(0xFF1E293B),
+                    color: const Color(0xFF1E293B),
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
@@ -221,9 +314,9 @@ class _AddExpensePageState extends State<AddExpensePage> {
             ),
 
             // Title
-            const Text(
-              'Add Expense',
-              style: TextStyle(
+            Text(
+              widget.isEditing ? 'Edit Expense' : 'Add Expense',
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF1E293B),
@@ -231,30 +324,8 @@ class _AddExpensePageState extends State<AddExpensePage> {
               ),
             ),
 
-            // Save button
-            GestureDetector(
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Expense "${_titleController.text}" of ₹${_amountController.text} saved successfully!'),
-                    backgroundColor: AppColors.expensePositive,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-                Navigator.of(context).pop();
-              },
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Text(
-                  'Save',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-            ),
+            // Empty spacer to center the title
+            const SizedBox(width: 40),
           ],
         ),
       ],
@@ -276,7 +347,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
           color: Color(0xFF1E293B),
         ),
         decoration: const InputDecoration(
-          hintText: 'Enter expense title',
+          hintText: 'Enter Expense Title',
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(
             horizontal: AppSizes.l,
@@ -348,53 +419,57 @@ class _AddExpensePageState extends State<AddExpensePage> {
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: categories.map((cat) {
-        final label = cat['label'] as String;
-        final emoji = cat['emoji'] as String;
-        final color = cat['color'] as Color;
-        final isSelected = _selectedCategory == label;
+      children:
+          categories.map((cat) {
+            final label = cat['label'] as String;
+            final emoji = cat['emoji'] as String;
+            final color = cat['color'] as Color;
+            final isSelected = _selectedCategory == label;
 
-        return Expanded(
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedCategory = label;
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              height: 80,
-              decoration: BoxDecoration(
-                color: isSelected ? color : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isSelected ? AppColors.primary : const Color(0xFFE2E8F0),
-                  width: isSelected ? 1.5 : 1,
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    emoji,
-                    style: const TextStyle(fontSize: 24),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: isSelected ? AppColors.primary : const Color(0xFF64748B),
+            return Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedCategory = label;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: isSelected ? color : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color:
+                          isSelected
+                              ? AppColors.primary
+                              : const Color(0xFFE2E8F0),
+                      width: isSelected ? 1.5 : 1,
                     ),
                   ),
-                ],
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(emoji, style: const TextStyle(fontSize: 24)),
+                      const SizedBox(height: 6),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color:
+                              isSelected
+                                  ? AppColors.primary
+                                  : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
-        );
-      }).toList(),
+            );
+          }).toList(),
     );
   }
 
@@ -402,7 +477,10 @@ class _AddExpensePageState extends State<AddExpensePage> {
     return GestureDetector(
       onTap: _showPaidByPicker,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSizes.l, vertical: 12),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSizes.l,
+          vertical: 12,
+        ),
         decoration: BoxDecoration(
           color: const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(16),
@@ -472,7 +550,10 @@ class _AddExpensePageState extends State<AddExpensePage> {
                     backgroundColor: member['color'] as Color,
                     child: Text(
                       member['initial'] as String,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   title: Text(
@@ -505,129 +586,152 @@ class _AddExpensePageState extends State<AddExpensePage> {
       ),
       padding: const EdgeInsets.all(4),
       child: Row(
-        children: types.map((type) {
-          final isSelected = _selectedSplitType == type;
+        children:
+            types.map((type) {
+              final isSelected = _selectedSplitType == type;
 
-          return Expanded(
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedSplitType = type;
-                });
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  type,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: isSelected ? Colors.white : const Color(0xFF64748B),
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedSplitType = type;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color:
+                          isSelected ? AppColors.primary : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      type,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color:
+                            isSelected ? Colors.white : const Color(0xFF64748B),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          );
-        }).toList(),
+              );
+            }).toList(),
       ),
     );
   }
 
   Widget _buildSplitBetweenList() {
     return Column(
-      children: _members.map((member) {
-        final isSelected = member['selected'] as bool;
-        final share = isSelected ? _individualShare : 0.0;
-        final amountText = '₹${share.toStringAsFixed(0)}';
+      children:
+          _members.map((member) {
+            final isSelected = member['selected'] as bool;
+            final share = isSelected ? _individualShare : 0.0;
+            final amountText = '₹${share.toStringAsFixed(2)}';
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isSelected ? const Color(0xFFEEF2FF) : const Color(0xFFF1F5F9),
-            ),
-          ),
-          child: Row(
-            children: [
-              // Custom checkbox representation
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    member['selected'] = !isSelected;
-                  });
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primary : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: isSelected ? AppColors.primary : const Color(0xFFCBD5E1),
-                      width: 1.5,
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color:
+                      isSelected
+                          ? const Color(0xFFEEF2FF)
+                          : const Color(0xFFF1F5F9),
+                ),
+              ),
+              child: Row(
+                children: [
+                  // Custom checkbox representation
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        member['selected'] = !isSelected;
+                      });
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color:
+                            isSelected
+                                ? AppColors.primary
+                                : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color:
+                              isSelected
+                                  ? AppColors.primary
+                                  : const Color(0xFFCBD5E1),
+                          width: 1.5,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child:
+                          isSelected
+                              ? const Icon(
+                                Icons.check,
+                                color: Colors.white,
+                                size: 14,
+                              )
+                              : null,
                     ),
                   ),
-                  alignment: Alignment.center,
-                  child: isSelected
-                      ? const Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 14,
-                        )
-                      : null,
-                ),
-              ),
-              const SizedBox(width: AppSizes.l),
+                  const SizedBox(width: AppSizes.l),
 
-              // Avatar
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: isSelected ? member['color'] as Color : const Color(0xFF94A3B8),
-                child: Text(
-                  member['initial'] as String,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                  // Avatar
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor:
+                        isSelected
+                            ? member['color'] as Color
+                            : const Color(0xFF94A3B8),
+                    child: Text(
+                      member['initial'] as String,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: AppSizes.m),
+                  const SizedBox(width: AppSizes.m),
 
-              // Name
-              Text(
-                member['name'] as String,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: isSelected ? const Color(0xFF1E293B) : const Color(0xFF94A3B8),
-                ),
-              ),
-              const Spacer(),
+                  // Name
+                  Text(
+                    member['name'] as String,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color:
+                          isSelected
+                              ? const Color(0xFF1E293B)
+                              : const Color(0xFF94A3B8),
+                    ),
+                  ),
+                  const Spacer(),
 
-              // Share amount
-              Text(
-                amountText,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: isSelected ? AppColors.primary : const Color(0xFF94A3B8),
-                ),
+                  // Share amount
+                  Text(
+                    amountText,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color:
+                          isSelected
+                              ? AppColors.primary
+                              : const Color(0xFF94A3B8),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        );
-      }).toList(),
+            );
+          }).toList(),
     );
   }
 }

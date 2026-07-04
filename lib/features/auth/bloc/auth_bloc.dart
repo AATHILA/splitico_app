@@ -3,7 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:splitico/core/bloc/base_bloc.dart';
-import 'package:splitico/features/auth/repository/auth_repository.dart' as repository;
+import 'package:splitico/features/auth/repository/auth_repository.dart'
+    as repository;
 import '../models/app_user.dart';
 import '../repository/auth_repository.dart';
 import 'auth_event.dart';
@@ -13,8 +14,8 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
   final AuthRepository _authRepository;
 
   AuthBloc(AuthRepository authRepository)
-      : _authRepository = authRepository,
-        super(AuthInitial()) {
+    : _authRepository = authRepository,
+      super(AuthInitial()) {
     on<AuthCheckRequested>(_onAuthCheckRequested);
     on<LoginRequested>(_onLoginRequested);
     on<SignUpRequested>(_onSignUpRequested);
@@ -64,7 +65,7 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
-    
+
     try {
       final credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
@@ -76,20 +77,22 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
       debugPrint(credential.user?.uid);
       debugPrint(credential.user?.email);
 
+       if (credential.user != null) {
+        await credential.user!.updateDisplayName(event.name);
+      }
+
       final user = AppUser(
         uid: credential.user!.uid,
         email: credential.user!.email ?? event.email,
-        displayName: credential.user!.displayName ?? event.email.split('@').first,
-      );
+        displayName:
+           event.name
+      ); 
       emit(AuthAuthenticated(user));
     } catch (e) {
       debugPrint("ERROR: $e");
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));
     }
-  }    
-     
-    
-  
+  }
 
   Future<void> _onSignOutRequested(
     SignOutRequested event,
@@ -112,7 +115,7 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
     try {
       // Simulate network request for OTP verification / sign in
       await Future.delayed(const Duration(milliseconds: 1000));
-      
+
       final user = AppUser(
         uid: 'phone-mock-uid-123',
         email: '${event.phoneNumber.replaceAll(' ', '')}@splitico.com',
@@ -131,15 +134,16 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
     emit(AuthLoading());
 
     try {
-      final result = await repository.sendOtp(
-        phoneNumber: event.phoneNumber,
-      );
+      final result = await repository.sendOtp(phoneNumber: event.phoneNumber);
       if (result.userCredential != null) {
         final firebaseUser = result.userCredential!.user!;
         final appUser = AppUser(
           uid: firebaseUser.uid,
           email: firebaseUser.email ?? '',
-          displayName: firebaseUser.displayName ?? firebaseUser.phoneNumber ?? 'Phone User',
+          displayName:
+              firebaseUser.displayName ??
+              firebaseUser.phoneNumber ??
+              'Phone User',
         );
         emit(AuthAuthenticated(appUser));
       } else if (result.verificationId != null) {
@@ -152,33 +156,31 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
     }
   }
 
+  Future<void> _onVerifyOtpRequested(
+    VerifyOtpRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
 
-Future<void> _onVerifyOtpRequested(
-  VerifyOtpRequested event,
-  Emitter<AuthState> emit,
-) async {
+    try {
+      final credential = await repository.verifyOtp(
+        verificationId: event.verificationId,
+        otp: event.otp,
+      );
 
-  emit(AuthLoading());
+      final firebaseUser = credential.user!;
+      final appUser = AppUser(
+        uid: firebaseUser.uid,
+        email: firebaseUser.email ?? '',
+        displayName:
+            firebaseUser.displayName ??
+            firebaseUser.phoneNumber ??
+            'Phone User',
+      );
 
-  try {
-    final credential =
-        await repository.verifyOtp(
-      verificationId: event.verificationId,
-      otp: event.otp,
-    );
-
-    final firebaseUser = credential.user!;
-    final appUser = AppUser(
-      uid: firebaseUser.uid,
-      email: firebaseUser.email ?? '',
-      displayName: firebaseUser.displayName ?? firebaseUser.phoneNumber ?? 'Phone User',
-    );
-
-    emit(AuthAuthenticated(appUser));
-
-  } catch (e) {
-    emit(AuthError(e.toString()));
+      emit(AuthAuthenticated(appUser));
+    } catch (e) {
+      emit(AuthError(e.toString()));
+    }
   }
 }
-}
-

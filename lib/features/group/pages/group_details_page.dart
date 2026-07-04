@@ -2,12 +2,28 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../expense/pages/add_expense_page.dart';
+import '../../../core/models/group.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../bloc/group_bloc.dart';
+import '../bloc/group_state.dart';
+
+
 
 class GroupDetailsPage extends StatelessWidget {
-  const GroupDetailsPage({super.key});
+  final GroupModel group;
+  const GroupDetailsPage({super.key, required this.group});
 
   @override
   Widget build(BuildContext context) {
+    return BlocBuilder<GroupBloc,GroupState>(builder: (context, state){
+       GroupModel currentGroup = group;
+        if (state is GroupsLoaded) {
+        currentGroup = state.groups.firstWhere(
+          (g) => g.name == group.name,
+          orElse: () => group,
+         );
+        }
+        
     final mediaQuery = MediaQuery.of(context);
     final topPadding = mediaQuery.padding.top;
     final bottomPadding = mediaQuery.padding.bottom;
@@ -26,11 +42,11 @@ class GroupDetailsPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // 1. Purple Gradient Header
-                  _buildGradientHeader(context, topPadding),
+                  _buildGradientHeader(context, topPadding, currentGroup),
 
                   // 2. Member Chips Section
                   const SizedBox(height: AppSizes.xl),
-                  _buildMembersRow(),
+                  _buildMembersRow(currentGroup),
 
                   // 3. Expenses Section Header
                   const SizedBox(height: AppSizes.xxl),
@@ -49,7 +65,7 @@ class GroupDetailsPage extends StatelessWidget {
                   const SizedBox(height: AppSizes.l),
 
                   // 4. Expenses Timeline List
-                  _buildExpensesTimeline(),
+                  _buildExpensesTimeline(currentGroup),
                 ],
               ),
             ),
@@ -60,14 +76,21 @@ class GroupDetailsPage extends StatelessWidget {
             left: 0,
             right: 0,
             bottom: 0,
-            child: _buildBottomActionArea(context, bottomPadding),
+            child: _buildBottomActionArea(context, bottomPadding, currentGroup),
           ),
         ],
       ),
     );
+  },
+    );
   }
 
-  Widget _buildGradientHeader(BuildContext context, double topPadding) {
+  Widget _buildGradientHeader(BuildContext context, double topPadding, GroupModel currentGroup) {
+
+    final totalSpent = currentGroup.expenses.fold<double>(0.0,(sum, expense)=> sum + expense.amount,);
+    final userShare = currentGroup.members.isEmpty ? 0.0 : totalSpent / currentGroup.members.length;
+  final youOwe = userShare * 0.3;
+    
     return Container(
       padding: EdgeInsets.fromLTRB(
         AppSizes.xxl,
@@ -168,9 +191,9 @@ class GroupDetailsPage extends StatelessWidget {
                     size: 24,
                   ),
                   const SizedBox(width: AppSizes.s),
-                  const Text(
-                    'Goa Trip 2024',
-                    style: TextStyle(
+                  Text(
+                    group.name,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
                       fontSize: 22,
@@ -199,7 +222,7 @@ class GroupDetailsPage extends StatelessWidget {
               Expanded(
                 child: _buildSummaryCard(
                   title: 'Total Spent',
-                  amount: '₹14,800',
+                  amount: '₹ ${totalSpent.toStringAsFixed(2)}',
                   amountColor: Colors.white,
                 ),
               ),
@@ -207,7 +230,7 @@ class GroupDetailsPage extends StatelessWidget {
               Expanded(
                 child: _buildSummaryCard(
                   title: 'Your Share',
-                  amount: '₹3,700',
+                  amount: '₹ ${userShare.toStringAsFixed(2)}',
                   amountColor: Colors.white,
                 ),
               ),
@@ -215,7 +238,7 @@ class GroupDetailsPage extends StatelessWidget {
               Expanded(
                 child: _buildSummaryCard(
                   title: 'You Owe',
-                  amount: '₹1,240',
+                  amount: '₹ ${youOwe.toStringAsFixed(2)}',
                   amountColor: const Color(0xFFFFA726), // warm orange/peach
                 ),
               ),
@@ -261,12 +284,8 @@ class GroupDetailsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildMembersRow() {
-    final members = [
-      {'name': 'Athila', 'initial': 'A', 'color': const Color(0xFF7C3AED)},
-      {'name': 'Riya', 'initial': 'R', 'color': const Color(0xFFEC4899)},
-      {'name': 'Kiran', 'initial': 'K', 'color': const Color(0xFF10B981)},
-    ];
+  Widget _buildMembersRow(GroupModel currentGroup) {
+    final members = currentGroup.members;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -286,7 +305,7 @@ class GroupDetailsPage extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 10,
-                  backgroundColor: member['color'] as Color,
+                  backgroundColor: (member['avatarBgColor'] ?? member['color'] ?? Colors.deepPurple) as Color,
                   child: Text(
                     member['initial'] as String,
                     style: const TextStyle(
@@ -313,27 +332,24 @@ class GroupDetailsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildExpensesTimeline() {
-    final expenses = [
-      {
-        'title': 'Dinner at Spice Garden',
-        'subtitle': 'Arjun paid • Split equally',
-        'emoji': '🍽️',
-        'amount': '₹2,400',
-      },
-      {
-        'title': 'Hotel Checkout',
-        'subtitle': 'Rahul paid • Split equally',
-        'emoji': '🏨',
-        'amount': '₹4,200',
-      },
-      {
-        'title': 'Ferry Tickets',
-        'subtitle': 'Kiran paid • Custom',
-        'emoji': '🚢',
-        'amount': '₹800',
-      },
-    ];
+  Widget _buildExpensesTimeline(GroupModel currentGroup) {
+    final expenses = currentGroup.expenses;
+
+     if (expenses.isEmpty) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 40),
+      child: Center(
+        child: Text(
+          'No expenses added yet! 💸',
+          style: TextStyle(
+            color: Color(0xFF64748B),
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
 
     return ListView.builder(
       shrinkWrap: true,
@@ -358,68 +374,73 @@ class GroupDetailsPage extends StatelessWidget {
 
               // Expense Card
               Expanded(
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: AppSizes.l),
-                  padding: const EdgeInsets.all(AppSizes.l),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFF1F5F9)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.02),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>  AddExpensePage(isEditing: true,group: currentGroup ,),
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Emoji
-                      Text(
-                        expense['emoji']!,
-                        style: const TextStyle(fontSize: 20),
-                      ),
-                      const SizedBox(width: AppSizes.m),
-
-                      // Title & Subtitle
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              expense['title']!,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1E293B),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              expense['subtitle']!,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF64748B),
-                              ),
-                            ),
-                          ],
+                    );
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: AppSizes.l),
+                    padding: const EdgeInsets.all(AppSizes.l),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFF1F5F9)),
+    
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Emoji
+                        Text(
+                          expense.emoji,
+                          style: const TextStyle(fontSize: 20),
                         ),
-                      ),
-                      const SizedBox(width: AppSizes.s),
+                        const SizedBox(width: AppSizes.m),
 
-                      // Amount
-                      Text(
-                        expense['amount']!,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF4C49ED),
+                        // Title & Subtitle
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                expense.title,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1E293B),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                               '${expense.paidBy} paid • Split ${expense.splitType}',
+                         
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: AppSizes.s),
+
+                        // Amount
+                        Text(
+                         '₹${expense.amount.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF4C49ED),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -430,7 +451,7 @@ class GroupDetailsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomActionArea(BuildContext context, double bottomPadding) {
+  Widget _buildBottomActionArea(BuildContext context, double bottomPadding, GroupModel currentGroup) {
     return Container(
       padding: EdgeInsets.fromLTRB(
         AppSizes.xxl,
@@ -460,7 +481,7 @@ class GroupDetailsPage extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const AddExpensePage(),
+                    builder: (context) =>  AddExpensePage(group: currentGroup),
                   ),
                 );
               },

@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:splitico/core/models/group.dart';
+import 'package:splitico/features/group/bloc/group_bloc.dart';
+import 'package:splitico/features/group/bloc/group_event.dart';
 import 'dart:math';
 import 'dart:ui' show ImageFilter;
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
+import '../../auth/bloc/auth_bloc.dart';
+import '../../auth/bloc/auth_state.dart';
 
 class CreateGroupPage extends StatefulWidget {
   const CreateGroupPage({super.key});
@@ -26,6 +31,22 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
   final List<Map<String, dynamic>> _members = [];
 
   @override
+  void initState() {
+    super.initState();
+    // Retrieve authenticated user's info to add them as a default member
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated && authState.user != null) {
+      final userName = authState.user!.resolvedDisplayName;
+      final initial = userName.isNotEmpty ? userName[0].toUpperCase() : '?';
+
+      _members.add({
+        'name': userName,
+        'initial': initial,
+        'avatarBgColor': const Color(0xFF7C3AED), // Default violet avatar color
+      });
+    }
+  }
+
   void dispose() {
     _nameController.dispose();
     super.dispose();
@@ -152,25 +173,25 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
               padding: const EdgeInsets.all(AppSizes.xxl),
               child: ElevatedButton(
                 onPressed: () {
-                 final name = _nameController.text.trim();
-  if (name.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Please enter a group name! ⚠️'),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    return;
-  }
+                  final name = _nameController.text.trim();
+                  if (name.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a group name! ⚠️'),
+                        backgroundColor: Colors.redAccent,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    return;
+                  }
                   // 1. Create the new group model
                   final newGroup = GroupModel(
                     name: _nameController.text.trim(),
                     type: _selectedType,
                     members: _members,
                   );
-                     // 2. Pop the main page and pass the newGroup back to the HomePage
-                 
+                  // 2. Pop the main page and pass the newGroup back to the HomePage
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
@@ -180,10 +201,10 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                       behavior: SnackBarBehavior.floating,
                     ),
                   );
-                   Navigator.of(context).pop(newGroup); 
-              
+                  context.read<GroupBloc>().add(AddGroup(newGroup));
+                  Navigator.of(context).pop(newGroup);
                 },
-               
+
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -398,7 +419,10 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
           filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
           child: Dialog(
             backgroundColor: Colors.white,
-            insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 24,
+            ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(32),
             ),
@@ -453,8 +477,13 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
 
-    final isAlreadyAdded = widget.existingMembers.any((m) => m['name'].toString().toLowerCase() == name.toLowerCase()) ||
-        _tempMembers.any((m) => m['name'].toString().toLowerCase() == name.toLowerCase());
+    final isAlreadyAdded =
+        widget.existingMembers.any(
+          (m) => m['name'].toString().toLowerCase() == name.toLowerCase(),
+        ) ||
+        _tempMembers.any(
+          (m) => m['name'].toString().toLowerCase() == name.toLowerCase(),
+        );
 
     if (isAlreadyAdded) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -475,7 +504,9 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       const Color(0xFFEF4444),
     ];
 
-    final colorIndex = (widget.existingMembers.length + _tempMembers.length) % avatarColors.length;
+    final colorIndex =
+        (widget.existingMembers.length + _tempMembers.length) %
+        avatarColors.length;
     final color = avatarColors[colorIndex];
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
@@ -569,10 +600,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.primary,
-                width: 2.0,
-              ),
+              border: Border.all(color: AppColors.primary, width: 2.0),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -624,27 +652,30 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
               ),
               child: SingleChildScrollView(
                 child: Column(
-                  children: _tempMembers
-                      .asMap()
-                      .map((index, member) => MapEntry(
-                            index,
-                            _buildTempMemberRow(member, index),
-                          ))
-                      .values
-                      .toList(),
+                  children:
+                      _tempMembers
+                          .asMap()
+                          .map(
+                            (index, member) => MapEntry(
+                              index,
+                              _buildTempMemberRow(member, index),
+                            ),
+                          )
+                          .values
+                          .toList(),
                 ),
               ),
             ),
           ],
           const SizedBox(height: 20),
           ElevatedButton(
-            onPressed: 
-        _tempMembers.isEmpty
-                ? null
-                : () {
-                    widget.onMembersAdded(_tempMembers);
-                    Navigator.of(context).pop(); 
-                  },
+            onPressed:
+                _tempMembers.isEmpty
+                    ? null
+                    : () {
+                      widget.onMembersAdded(_tempMembers);
+                      Navigator.of(context).pop();
+                    },
 
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
@@ -662,15 +693,15 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
               children: [
                 const Text(
                   'Done',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
                 if (_tempMembers.isNotEmpty) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),

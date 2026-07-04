@@ -6,6 +6,8 @@ import 'package:splitico/core/models/group.dart';
 import 'package:splitico/core/theme/text_styles.dart';
 import 'package:splitico/features/auth/bloc/auth_bloc.dart';
 import 'package:splitico/features/auth/bloc/auth_state.dart';
+import 'package:splitico/features/group/bloc/group_bloc.dart';
+import 'package:splitico/features/group/bloc/group_state.dart';
 import 'package:splitico/features/home/widgets/balance_card.dart';
 import 'package:splitico/features/home/widgets/group_chip.dart';
 import 'package:splitico/features/home/widgets/expense_card.dart';
@@ -27,6 +29,50 @@ class _HomePageState extends State<HomePage> {
   int _currentTabIndex = 0;
   final List<GroupModel> _customGroups = [];
 
+  IconData _getGroupIcon(String type) {
+    switch (type) {
+      case 'Travel':
+        return Icons.flight_takeoff_rounded;
+      case 'Home':
+        return Icons.home_rounded;
+      case 'Friends':
+        return Icons.people_rounded;
+      case 'Family':
+        return Icons.family_restroom_rounded;
+      default:
+        return Icons.group_rounded;
+    }
+  }
+
+  Color _getGroupBgColor(String type) {
+    switch (type) {
+      case 'Travel':
+        return AppColors.groupGoaBg;
+      case 'Home':
+        return AppColors.groupFlatBg;
+      case 'Friends':
+        return AppColors.groupFriendsBg;
+      case 'Family':
+        return const Color(0xFFFFF1F2);
+      default:
+        return AppColors.groupFriendsBg;
+    }
+  }
+
+  Color _getGroupTextColor(String type) {
+    switch (type) {
+      case 'Travel':
+        return AppColors.groupGoaText;
+      case 'Home':
+        return AppColors.groupFlatText;
+      case 'Friends':
+        return AppColors.groupFriendsText;
+      case 'Family':
+        return const Color(0xFFF43F5E);
+      default:
+        return AppColors.groupFriendsText;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,34 +90,30 @@ class _HomePageState extends State<HomePage> {
           });
         },
       ),
-      floatingActionButton: _currentTabIndex == 0
-          ? FloatingActionButton(
-              onPressed: () async {
-                final result = await
-                Navigator.push<GroupModel>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CreateGroupPage(),
-                  ),
-                );
-                if (result!= null) {
-                  setState(() {
-                    _customGroups.add(result);
-                  });
-                }
-              },
-              backgroundColor: AppColors.primary,
-              elevation: 6,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 28,
-              ),
-            )
-          : null,
+      floatingActionButton:
+          _currentTabIndex == 0
+              ? FloatingActionButton(
+                onPressed: () async {
+                  final result = await Navigator.push<GroupModel>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CreateGroupPage(),
+                    ),
+                  );
+                  if (result != null) {
+                    setState(() {
+                      _customGroups.add(result);
+                    });
+                  }
+                },
+                backgroundColor: AppColors.primary,
+                elevation: 6,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 28),
+              )
+              : null,
     );
   }
 
@@ -194,56 +236,69 @@ class _HomePageState extends State<HomePage> {
                           style: AppTextStyles.sectionTitle,
                         ),
                         const SizedBox(height: AppSizes.m),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          clipBehavior: Clip.none,
-                          child: Row(
-                            children: [
-                              GroupChip(
-                                label: 'Goa Trip',
-                                icon: Icons.upload_rounded,
-                                backgroundColor: AppColors.groupGoaBg,
-                                textColor: AppColors.groupGoaText,
-                                iconColor: AppColors.groupGoaText,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const GroupDetailsPage(),
-                                    ),
-                                  );
-                                },
+                        BlocBuilder<GroupBloc, GroupState>(
+                          builder: (context, state) {
+                            List<GroupModel> groups = [];
+                            if (state is GroupsLoaded) {
+                              groups = state.groups;
+                            }
+                            if (groups.isEmpty) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  vertical: AppSizes.s,
+                                ),
+                                child: Text(
+                                  'No active groups. Tap + to create one!',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textLight,
+                                  ),
+                                ),
+                              );
+                            }
+                            return SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              clipBehavior: Clip.none,
+                              child: Row(
+                                children:
+                                    groups.map((group) {
+                                      final isFirst =
+                                          groups.indexOf(group) == 0;
+                                      return Padding(
+                                        padding: EdgeInsets.only(
+                                          left: isFirst ? 0 : AppSizes.m,
+                                        ),
+                                        child: GroupChip(
+                                          label: group.name,
+                                          icon: _getGroupIcon(group.type),
+                                          backgroundColor: _getGroupBgColor(
+                                            group.type,
+                                          ),
+                                          textColor: _getGroupTextColor(
+                                            group.type,
+                                          ),
+                                          iconColor: _getGroupTextColor(
+                                            group.type,
+                                          ),
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder:
+                                                    (context) =>
+                                                        GroupDetailsPage(
+                                                          group: group,
+                                                        ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      );
+                                    }).toList(),
                               ),
-                              const SizedBox(width: AppSizes.m),
-                              GroupChip(
-                                label: 'Flat',
-                                icon: Icons.home_rounded,
-                                backgroundColor: AppColors.groupFlatBg,
-                                textColor: AppColors.groupFlatText,
-                                iconColor: AppColors.groupFlatText,
-                                onTap: () {},
-                              ),
-                              const SizedBox(width: AppSizes.m),
-                              GroupChip(
-                                label: 'Friends',
-                                icon: Icons.people_rounded,
-                                backgroundColor: AppColors.groupFriendsBg,
-                                textColor: AppColors.groupFriendsText,
-                                iconColor: AppColors.groupFriendsText,
-                                onTap: () {},
-                              ),
-                            ..._customGroups.map((group)=>Padding(
-      padding: const EdgeInsets.only(left: AppSizes.m),
-      child: GroupChip(
-        label: group.name,
-        icon: group.type == 'Travel' ? Icons.flight_takeoff : Icons.group,
-        backgroundColor: AppColors.groupGoaBg,
-        textColor: AppColors.groupGoaText,
-        iconColor: AppColors.groupGoaText,
-        onTap: () {},
-      ),
-    )),
-                      ]),
+                            );
+                          },
                         ),
                         const SizedBox(height: AppSizes.xxl + 8),
                         // TODO: Fetch recent expenses dynamically from database/backend.
@@ -267,7 +322,30 @@ class _HomePageState extends State<HomePage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const GroupDetailsPage(),
+                                builder:
+                                    (context) => GroupDetailsPage(
+                                      group: GroupModel(
+                                        name: 'Goa Trip',
+                                        type: 'Travel',
+                                        members: const [
+                                          {
+                                            'name': 'Athila',
+                                            'initial': 'A',
+                                            'avatarBgColor': Color(0xFF7C3AED),
+                                          },
+                                          {
+                                            'name': 'Riya',
+                                            'initial': 'R',
+                                            'avatarBgColor': Color(0xFFEC4899),
+                                          },
+                                          {
+                                            'name': 'Kiran',
+                                            'initial': 'K',
+                                            'avatarBgColor': Color(0xFF10B981),
+                                          },
+                                        ],
+                                      ),
+                                    ),
                               ),
                             );
                           },
@@ -296,7 +374,30 @@ class _HomePageState extends State<HomePage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const GroupDetailsPage(),
+                                builder:
+                                    (context) => GroupDetailsPage(
+                                      group: GroupModel(
+                                        name: 'Goa Trip',
+                                        type: 'Travel',
+                                        members: const [
+                                          {
+                                            'name': 'Athila',
+                                            'initial': 'A',
+                                            'avatarBgColor': Color(0xFF7C3AED),
+                                          },
+                                          {
+                                            'name': 'Riya',
+                                            'initial': 'R',
+                                            'avatarBgColor': Color(0xFFEC4899),
+                                          },
+                                          {
+                                            'name': 'Kiran',
+                                            'initial': 'K',
+                                            'avatarBgColor': Color(0xFF10B981),
+                                          },
+                                        ],
+                                      ),
+                                    ),
                               ),
                             );
                           },
@@ -327,9 +428,7 @@ class _HomePageState extends State<HomePage> {
       case 4:
         return const ProfilePage();
       default:
-        return const Center(
-          child: Text('Unknown Screen'),
-        );
+        return const Center(child: Text('Unknown Screen'));
     }
   }
 }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:splitico/features/group/bloc/group_bloc.dart';
 import 'package:splitico/firebase_options.dart';
 import 'package:splitico/features/auth/bloc/auth_bloc.dart';
 import 'package:splitico/features/auth/repository/auth_repository.dart';
 import 'package:splitico/features/auth/presentation/login_screen.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,9 +20,17 @@ void main() async {
   //   options: DefaultFirebaseOptions.currentPlatform,
   // );
   runApp(
-    BlocProvider(
-      create: (_) => AuthBloc(AuthRepository()),
-      child: const MyApp(),
+    MultiBlocProvider(
+      providers: [
+      BlocProvider<AuthBloc>(create: (_) =>
+      AuthBloc(AuthRepository()),
+     ),
+      BlocProvider<GroupBloc>(
+        create: (_) => GroupBloc(),
+      ),
+    ], 
+    child:
+    const MyApp(),
     ),
   );
 }

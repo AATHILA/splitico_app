@@ -31,7 +31,7 @@ class ExpenseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final formattedAmount =
-        '${isOwed ? '+' : '-'}₹${amount.toStringAsFixed(0)}';
+        '${isOwed ? '+' : '-'}₹${amount.toStringAsFixed(2)}';
     final amountStyle =
         isOwed ? AppTextStyles.expensePositive : AppTextStyles.expenseNegative;
 

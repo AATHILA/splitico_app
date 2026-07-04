@@ -31,12 +31,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   void _submitForm() {
     if (_formKey.currentState?.validate() ?? false) {
+      final name = _nameController.text.trim();
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
       context.read<AuthBloc>().add(
-            SignUpRequested(email: email, password: password),
-          );
+        SignUpRequested(name: name, email: email, password: password),
+      );
     }
   }
 
@@ -151,7 +152,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               shape: BoxShape.circle,
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
+                              ),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.02),
@@ -248,7 +251,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your email';
                         }
-                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                        if (!RegExp(
+                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                        ).hasMatch(value)) {
                           return 'Please enter a valid email';
                         }
                         return null;
@@ -276,7 +281,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF1E293B),
                       ),
-                      decoration: _buildPasswordInputDecoration('Enter your password'),
+                      decoration: _buildPasswordInputDecoration(
+                        'Enter your password',
+                      ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your password';
@@ -305,22 +312,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                       ),
-                      child: isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      child:
+                          isLoading
+                              ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                              : const Text(
+                                'Create Account',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
-                            )
-                          : const Text(
-                              'Create Account',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
                     ),
                     const SizedBox(height: AppSizes.l),
 
@@ -337,7 +347,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             height: 1.4,
                           ),
                           children: [
-                            TextSpan(text: 'By creating an account, you agree to our\n'),
+                            TextSpan(
+                              text:
+                                  'By creating an account, you agree to our\n',
+                            ),
                             TextSpan(
                               text: 'Terms & Privacy Policy',
                               style: TextStyle(
@@ -364,11 +377,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: isLoading
-                              ? null
-                              : () {
-                                  Navigator.of(context).pop();
-                                },
+                          onTap:
+                              isLoading
+                                  ? null
+                                  : () {
+                                    Navigator.of(context).pop();
+                                  },
                           child: const Text(
                             'Sign In',
                             style: TextStyle(
@@ -421,7 +435,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
         padding: const EdgeInsets.only(right: 8),
         child: IconButton(
           icon: Icon(
-            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            _obscurePassword
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined,
             color: const Color(0xFF94A3B8),
             size: 20,
           ),

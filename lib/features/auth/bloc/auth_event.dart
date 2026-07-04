@@ -17,13 +17,16 @@ class LoginRequested extends AuthEvent {
 }
 
 class SignUpRequested extends AuthEvent {
+  final String name;
   final String email;
   final String password;
 
-  const SignUpRequested({required this.email, required this.password});
+  const SignUpRequested({
+    required this.name, required this.email,
+     required this.password});
 
   @override
-  List<Object?> get props => [email, password];
+  List<Object?> get props => [name, email, password];
 }
 
 class SignOutRequested extends AuthEvent {}
@@ -50,10 +53,7 @@ class VerifyOtpRequested extends AuthEvent {
   final String verificationId;
   final String otp;
 
-  const VerifyOtpRequested({
-    required this.verificationId,
-    required this.otp,
-  });
+  const VerifyOtpRequested({required this.verificationId, required this.otp});
 
   @override
   List<Object?> get props => [verificationId, otp];

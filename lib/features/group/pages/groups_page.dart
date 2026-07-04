@@ -58,8 +58,11 @@ class _GroupsPageState extends State<GroupsPage> {
 
   List<Map<String, dynamic>> get _filteredGroups {
     return _allGroups.where((group) {
-      final matchesCategory = _selectedCategory == 'All' || group['category'] == _selectedCategory;
-      final matchesSearch = group['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
+      final matchesCategory =
+          _selectedCategory == 'All' || group['category'] == _selectedCategory;
+      final matchesSearch = group['name'].toString().toLowerCase().contains(
+        _searchQuery.toLowerCase(),
+      );
       return matchesCategory && matchesSearch;
     }).toList();
   }
@@ -92,7 +95,9 @@ class _GroupsPageState extends State<GroupsPage> {
                     onPressed: () async {
                       final result = await Navigator.push<GroupModel>(
                         context,
-                        MaterialPageRoute(builder: (context) => const CreateGroupPage()),
+                        MaterialPageRoute(
+                          builder: (context) => const CreateGroupPage(),
+                        ),
                       );
                       if (result != null) {
                         final emojiMap = {
@@ -112,7 +117,9 @@ class _GroupsPageState extends State<GroupsPage> {
                             'name': result.name,
                             'category': result.type,
                             'emoji': emojiMap[result.type] ?? '👥',
-                            'emojiBg': emojiBgMap[result.type] ?? const Color(0xFFEFF6FF),
+                            'emojiBg':
+                                emojiBgMap[result.type] ??
+                                const Color(0xFFEFF6FF),
                             'membersCount': result.members.length,
                             'expensesCount': 0,
                             'balance': 0.0,
@@ -128,7 +135,10 @@ class _GroupsPageState extends State<GroupsPage> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                     ),
                     child: const Text(
                       '+ New',
@@ -172,10 +182,7 @@ class _GroupsPageState extends State<GroupsPage> {
                     ),
                     prefixIcon: const Padding(
                       padding: EdgeInsets.all(12),
-                      child: Text(
-                        '🔍',
-                        style: TextStyle(fontSize: 18),
-                      ),
+                      child: Text('🔍', style: TextStyle(fontSize: 18)),
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppSizes.radiusXL),
@@ -187,7 +194,10 @@ class _GroupsPageState extends State<GroupsPage> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppSizes.radiusXL),
-                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      borderSide: const BorderSide(
+                        color: AppColors.primary,
+                        width: 1.5,
+                      ),
                     ),
                     contentPadding: const EdgeInsets.symmetric(vertical: 14),
                   ),
@@ -201,14 +211,15 @@ class _GroupsPageState extends State<GroupsPage> {
 
               // Group Cards List
               Expanded(
-                child: _filteredGroups.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                        itemCount: _filteredGroups.length,
-                        itemBuilder: (context, index) {
-                          return _buildGroupCard(_filteredGroups[index]);
-                        },
-                      ),
+                child:
+                    _filteredGroups.isEmpty
+                        ? _buildEmptyState()
+                        : ListView.builder(
+                          itemCount: _filteredGroups.length,
+                          itemBuilder: (context, index) {
+                            return _buildGroupCard(_filteredGroups[index]);
+                          },
+                        ),
               ),
             ],
           ),
@@ -273,17 +284,42 @@ class _GroupsPageState extends State<GroupsPage> {
 
     if (balance < 0) {
       balanceColor = AppColors.expenseNegative; // red
-      balanceText = '-₹${balance.abs().toStringAsFixed(0)}';
+      balanceText = '-₹${balance.abs().toStringAsFixed(2)}';
     } else if (balance > 0) {
       balanceColor = AppColors.expensePositive; // green
-      balanceText = '+₹${balance.toStringAsFixed(0)}';
+      balanceText = '+₹${balance.toStringAsFixed(2)}';
     }
 
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const GroupDetailsPage()),
+          MaterialPageRoute(
+            builder:
+                (context) => GroupDetailsPage(
+                  group: GroupModel(
+                    name: name,
+                    type: group['category'] ?? 'Friends',
+                    members: const [
+                      {
+                        'name': 'Athila',
+                        'initial': 'A',
+                        'avatarBgColor': Color(0xFF7C3AED),
+                      },
+                      {
+                        'name': 'Riya',
+                        'initial': 'R',
+                        'avatarBgColor': Color(0xFFEC4899),
+                      },
+                      {
+                        'name': 'Kiran',
+                        'initial': 'K',
+                        'avatarBgColor': Color(0xFF10B981),
+                      },
+                    ],
+                  ),
+                ),
+          ),
         );
       },
       child: Container(
@@ -312,10 +348,7 @@ class _GroupsPageState extends State<GroupsPage> {
                 borderRadius: BorderRadius.circular(AppSizes.radiusXL),
               ),
               alignment: Alignment.center,
-              child: Text(
-                emoji,
-                style: const TextStyle(fontSize: 28),
-              ),
+              child: Text(emoji, style: const TextStyle(fontSize: 28)),
             ),
             const SizedBox(width: AppSizes.l),
 
@@ -379,10 +412,7 @@ class _GroupsPageState extends State<GroupsPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
-            '🔍',
-            style: TextStyle(fontSize: 48),
-          ),
+          const Text('🔍', style: TextStyle(fontSize: 48)),
           const SizedBox(height: AppSizes.m),
           const Text(
             'No groups found',
