@@ -1,4 +1,5 @@
 class ExpenseModel {
+  final String id;
   final String title;
   final double amount;
   final String paidBy; // Name or ID of the member who paid
@@ -7,13 +8,14 @@ class ExpenseModel {
   final String category;
 
   ExpenseModel({
+    String? id,
     required this.title,
     required this.amount,
     required this.paidBy,
     required this.splitType,
     required this.splitBetween,
     this.category = 'Food',
-  });
+  }) : id = id ?? DateTime.now().millisecondsSinceEpoch.toString();
 
   String get emoji {
     switch (category) {

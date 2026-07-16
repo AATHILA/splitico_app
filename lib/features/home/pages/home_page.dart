@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:splitico/core/constants/app_colors.dart';
 import 'package:splitico/core/constants/app_sizes.dart';
 import 'package:splitico/core/models/group.dart';
+import 'package:splitico/core/models/expense.dart';
 import 'package:splitico/core/theme/text_styles.dart';
 import 'package:splitico/features/auth/bloc/auth_bloc.dart';
 import 'package:splitico/features/auth/bloc/auth_state.dart';
@@ -43,6 +44,52 @@ class _HomePageState extends State<HomePage> {
         return Icons.group_rounded;
     }
   }
+
+    IconData _getCategoryIcon(String category) {
+    switch (category) {
+      case 'Food':
+        return Icons.restaurant_rounded;
+      case 'Transport':
+        return Icons.local_taxi_rounded;
+      case 'Stay':
+        return Icons.hotel_rounded;
+      case 'Activity':
+        return Icons.local_activity_rounded;
+      default:
+        return Icons.receipt_long_rounded;
+    }
+  }
+
+  Color _getCategoryBgColor(String category) {
+    switch (category) {
+      case 'Food':
+        return const Color(0xFFEEF2FF); // Soft Indigo/Blue
+      case 'Transport':
+        return const Color(0xFFECFDF5); // Soft Emerald/Green
+      case 'Stay':
+        return const Color(0xFFFEF3C7); // Soft Amber/Yellow
+      case 'Activity':
+        return const Color(0xFFFFF1F2); // Soft Rose/Pink
+      default:
+        return const Color(0xFFF1F5F9); // Soft Grey
+    }
+  }
+
+  Color _getCategoryIconColor(String category) {
+    switch (category) {
+      case 'Food':
+        return const Color(0xFF4F46E5);
+      case 'Transport':
+        return const Color(0xFF059669);
+      case 'Stay':
+        return const Color(0xFFD97706);
+      case 'Activity':
+        return const Color(0xFFE11D48);
+      default:
+        return const Color(0xFF475569);
+    }
+  }
+
 
   Color _getGroupBgColor(String type) {
     switch (type) {
@@ -121,11 +168,10 @@ class _HomePageState extends State<HomePage> {
     switch (_currentTabIndex) {
       case 0:
         return BlocBuilder<AuthBloc, AuthState>(
-          builder: (context, state) {
-            // TODO: Replace with dynamic user profile data fetched from database/backend.
+          builder: (context, authState) {
             String displayName = 'Rahul Kumar';
-            if (state is AuthAuthenticated && state.user != null) {
-              displayName = state.user!.resolvedDisplayName;
+            if (authState is AuthAuthenticated && authState.user != null) {
+              displayName = authState.user!.resolvedDisplayName;
               // Capitalize name nicely
               if (displayName.isNotEmpty) {
                 displayName =
@@ -133,117 +179,132 @@ class _HomePageState extends State<HomePage> {
               }
             }
 
-            return SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Indigo Header Container
-                  Container(
-                    padding: EdgeInsets.fromLTRB(
-                      AppSizes.xxl,
-                      topPadding + AppSizes.m,
-                      AppSizes.xxl,
-                      AppSizes.xxxl,
-                    ),
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(AppSizes.radiusXXL),
-                        bottomRight: Radius.circular(AppSizes.radiusXXL),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Top Row representing phone top indicators (9:41, Actions)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              '9:41',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.more_horiz_rounded),
-                              color: Colors.white,
-                              onPressed: () {},
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                          ],
+            return BlocBuilder<GroupBloc, GroupState>(
+              builder: (context, groupState) {
+                List<GroupModel> groups = [];
+                if (groupState is GroupsLoaded) {
+                  groups = groupState.groups;
+                }
+
+                // 1. Gather all expenses across all groups
+                final allRecentExpenses = <Map<String, dynamic>>[];
+                for (var group in groups) {
+                  for (var expense in group.expenses) {
+                    allRecentExpenses.add({
+                      'group': group,
+                      'expense': expense,
+                    });
+                  }
+                }
+
+                // 2. Show newest expenses first (reverse the list)
+                final recentExpenses = allRecentExpenses.reversed.toList();
+
+                return SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Indigo Header Container
+                      Container(
+                        padding: EdgeInsets.fromLTRB(
+                          AppSizes.xxl,
+                          topPadding + AppSizes.m,
+                          AppSizes.xxl,
+                          AppSizes.xxxl,
                         ),
-                        const SizedBox(height: AppSizes.xxl),
-                        // Welcome & Username
-                        Row(
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(AppSizes.radiusXXL),
+                            bottomRight: Radius.circular(AppSizes.radiusXXL),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
+                            // Top Row representing phone top indicators (9:41, Actions)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  '9:41',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.more_horiz_rounded),
+                                  color: Colors.white,
+                                  onPressed: () {},
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSizes.xxl),
+                            // Welcome & Username
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Text(
-                                        'Good morning',
-                                        style: AppTextStyles.welcome,
+                                      Row(
+                                        children: [
+                                          const Text(
+                                            'Hi',
+                                            style: AppTextStyles.welcome,
+                                          ),
+                                          const SizedBox(width: AppSizes.xs),
+                                          Text(
+                                            '👋',
+                                            style: AppTextStyles.welcome.copyWith(
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(width: AppSizes.xs),
+                                      const SizedBox(height: AppSizes.xs),
                                       Text(
-                                        '👋',
-                                        style: AppTextStyles.welcome.copyWith(
-                                          fontSize: 16,
-                                        ),
+                                        displayName,
+                                        style: AppTextStyles.userName,
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: AppSizes.xs),
-                                  Text(
-                                    displayName,
-                                    style: AppTextStyles.userName,
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSizes.xxl),
+                            // TODO: Fetch real user balances (youOwe, owedToYou, netBalance) from database/backend.
+                            // Balance Card
+                            const BalanceCard(
+                              youOwe: 1240,
+                              owedToYou: 3600,
+                              netBalance: 2360,
                             ),
                           ],
                         ),
-                        const SizedBox(height: AppSizes.xxl),
-                        // TODO: Fetch real user balances (youOwe, owedToYou, netBalance) from database/backend.
-                        // Balance Card
-                        const BalanceCard(
-                          youOwe: 1240,
-                          owedToYou: 3600,
-                          netBalance: 2360,
+                      ),
+                      // Main Content Body
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.xxl,
+                          vertical: AppSizes.xxl,
                         ),
-                      ],
-                    ),
-                  ),
-                  // Main Content Body
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSizes.xxl,
-                      vertical: AppSizes.xxl,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // TODO: Fetch user's active groups dynamically from database/backend.
-                        // Active Groups Section
-                        const Text(
-                          'Active Groups',
-                          style: AppTextStyles.sectionTitle,
-                        ),
-                        const SizedBox(height: AppSizes.m),
-                        BlocBuilder<GroupBloc, GroupState>(
-                          builder: (context, state) {
-                            List<GroupModel> groups = [];
-                            if (state is GroupsLoaded) {
-                              groups = state.groups;
-                            }
-                            if (groups.isEmpty) {
-                              return const Padding(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // TODO: Fetch user's active groups dynamically from database/backend.
+                            // Active Groups Section
+                            const Text(
+                              'Active Groups',
+                              style: AppTextStyles.sectionTitle,
+                            ),
+                            const SizedBox(height: AppSizes.m),
+                            if (groups.isEmpty) ...[
+                              const Padding(
                                 padding: EdgeInsets.symmetric(
                                   vertical: AppSizes.s,
                                 ),
@@ -255,158 +316,102 @@ class _HomePageState extends State<HomePage> {
                                     color: AppColors.textLight,
                                   ),
                                 ),
-                              );
-                            }
-                            return SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              clipBehavior: Clip.none,
-                              child: Row(
-                                children:
-                                    groups.map((group) {
-                                      final isFirst =
-                                          groups.indexOf(group) == 0;
-                                      return Padding(
-                                        padding: EdgeInsets.only(
-                                          left: isFirst ? 0 : AppSizes.m,
+                              ),
+                            ] else ...[
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                clipBehavior: Clip.none,
+                                child: Row(
+                                  children: groups.map((group) {
+                                    final isFirst = groups.indexOf(group) == 0;
+                                    return Padding(
+                                      padding: EdgeInsets.only(
+                                        left: isFirst ? 0 : AppSizes.m,
+                                      ),
+                                      child: GroupChip(
+                                        label: group.name,
+                                        icon: _getGroupIcon(group.type),
+                                        backgroundColor: _getGroupBgColor(
+                                          group.type,
                                         ),
-                                        child: GroupChip(
-                                          label: group.name,
-                                          icon: _getGroupIcon(group.type),
-                                          backgroundColor: _getGroupBgColor(
-                                            group.type,
-                                          ),
-                                          textColor: _getGroupTextColor(
-                                            group.type,
-                                          ),
-                                          iconColor: _getGroupTextColor(
-                                            group.type,
-                                          ),
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder:
-                                                    (context) =>
-                                                        GroupDetailsPage(
-                                                          group: group,
-                                                        ),
+                                        textColor: _getGroupTextColor(
+                                          group.type,
+                                        ),
+                                        iconColor: _getGroupTextColor(
+                                          group.type,
+                                        ),
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => GroupDetailsPage(
+                                                group: group,
                                               ),
-                                            );
-                                          },
-                                        ),
-                                      );
-                                    }).toList(),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: AppSizes.xxl + 8),
-                        // TODO: Fetch recent expenses dynamically from database/backend.
-                        // Recent Expenses Section
-                        const Text(
-                          'Recent Expenses',
-                          style: AppTextStyles.sectionTitle,
-                        ),
-                        const SizedBox(height: AppSizes.m),
-                        // List of expenses
-                        ExpenseCard(
-                          title: 'Dinner at Spice Garden',
-                          groupName: 'Goa Trip',
-                          payerName: 'Arjun',
-                          amount: 480,
-                          isOwed: false,
-                          icon: Icons.restaurant_rounded,
-                          iconBgColor: AppColors.iconBgFood,
-                          iconColor: AppColors.groupGoaText,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => GroupDetailsPage(
-                                      group: GroupModel(
-                                        name: 'Goa Trip',
-                                        type: 'Travel',
-                                        members: const [
-                                          {
-                                            'name': 'Athila',
-                                            'initial': 'A',
-                                            'avatarBgColor': Color(0xFF7C3AED),
-                                          },
-                                          {
-                                            'name': 'Riya',
-                                            'initial': 'R',
-                                            'avatarBgColor': Color(0xFFEC4899),
-                                          },
-                                          {
-                                            'name': 'Kiran',
-                                            'initial': 'K',
-                                            'avatarBgColor': Color(0xFF10B981),
-                                          },
-                                        ],
+                                            ),
+                                          );
+                                        },
                                       ),
-                                    ),
+                                    );
+                                  }).toList(),
+                                ),
                               ),
-                            );
-                          },
-                        ),
-                        ExpenseCard(
-                          title: 'Electricity Bill',
-                          groupName: 'Flat',
-                          payerName: 'You',
-                          amount: 600,
-                          isOwed: true,
-                          icon: Icons.flash_on_rounded,
-                          iconBgColor: AppColors.iconBgElectricity,
-                          iconColor: Colors.orange.shade700,
-                          onTap: () {},
-                        ),
-                        ExpenseCard(
-                          title: 'Cab to Airport',
-                          groupName: 'Goa Trip',
-                          payerName: 'Rahul',
-                          amount: 320,
-                          isOwed: false,
-                          icon: Icons.local_taxi_rounded,
-                          iconBgColor: AppColors.iconBgTransport,
-                          iconColor: Colors.amber.shade800,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => GroupDetailsPage(
-                                      group: GroupModel(
-                                        name: 'Goa Trip',
-                                        type: 'Travel',
-                                        members: const [
-                                          {
-                                            'name': 'Athila',
-                                            'initial': 'A',
-                                            'avatarBgColor': Color(0xFF7C3AED),
-                                          },
-                                          {
-                                            'name': 'Riya',
-                                            'initial': 'R',
-                                            'avatarBgColor': Color(0xFFEC4899),
-                                          },
-                                          {
-                                            'name': 'Kiran',
-                                            'initial': 'K',
-                                            'avatarBgColor': Color(0xFF10B981),
-                                          },
-                                        ],
+                            ],
+                            const SizedBox(height: AppSizes.xxl + 8),
+                            // Recent Expenses Section
+                            const Text(
+                              'Recent Expenses',
+                              style: AppTextStyles.sectionTitle,
+                            ),
+                            const SizedBox(height: AppSizes.m),
+                            // List of expenses
+                            if (recentExpenses.isEmpty) ...[
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 24),
+                                child: Center(
+                                  child: Text(
+                                    'No recent expenses. 💸',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textLight,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ] else ...[
+                              ...recentExpenses.map((item) {
+                                final group = item['group'] as GroupModel;
+                                final expense = item['expense'] as ExpenseModel;
+                                final isOwed = expense.paidBy.toLowerCase() == 'you' ||
+                                    expense.paidBy.toLowerCase() == displayName.toLowerCase();
+
+                                return ExpenseCard(
+                                  title: expense.title,
+                                  groupName: group.name,
+                                  payerName: expense.paidBy,
+                                  amount: expense.amount,
+                                  isOwed: isOwed,
+                                  icon: _getCategoryIcon(expense.category),
+                                  iconBgColor: _getCategoryBgColor(expense.category),
+                                  iconColor: _getCategoryIconColor(expense.category),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => GroupDetailsPage(group: group),
                                       ),
-                                    ),
-                              ),
-                            );
-                          },
+                                    );
+                                  },
+                                );
+                              }).toList()
+                            ],
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
         );

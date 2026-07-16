@@ -10,10 +10,12 @@ import '../../../core/models/group.dart';
 class AddExpensePage extends StatefulWidget {
   final bool isEditing;
   final GroupModel group;
+  final ExpenseModel? expenseToEdit;
   const AddExpensePage({
     super.key,
     this.isEditing = false,
     required this.group,
+    this.expenseToEdit,
   });
 
   @override
@@ -36,11 +38,29 @@ class _AddExpensePageState extends State<AddExpensePage> {
   void initState() {
     super.initState();
 
-    _titleController = TextEditingController(text: '');
-    _amountController = TextEditingController(text: '');
+    final isEdit = widget.isEditing && widget.expenseToEdit != null;
+    _titleController = TextEditingController(
+      text: isEdit ? widget.expenseToEdit!.title : '',
+    );
+    _amountController = TextEditingController(
+      text: isEdit ? widget.expenseToEdit!.amount.toString() : '',
+    );
+
+    _selectedCategory = isEdit ? widget.expenseToEdit!.category : 'Food';
+    _selectedSplitType = isEdit ? widget.expenseToEdit!.splitType : 'Equal';
 
     _members =
         widget.group.members.map((member) {
+          final isMemberSelected =
+              isEdit
+                  ? widget.expenseToEdit!.splitBetween.any(
+                    (m) =>
+                        m['name'].toString().toLowerCase() ==
+                            member['name'].toString().toLowerCase() &&
+                        (m['selected'] ?? true) == true,
+                  )
+                  : true;
+
           return {
             'id': member['name'].toString().toLowerCase(),
             'name': member['name'],
@@ -49,14 +69,22 @@ class _AddExpensePageState extends State<AddExpensePage> {
                 (member['name'].isNotEmpty
                     ? member['name'][0].toUpperCase()
                     : '?'),
-            'color':
-                member['avatarBgColor'] ??
-                const Color(0xFF7C3AED), // Map avatarBgColor to color
-            'selected': true, // Default all members as selected for split
+            'color': member['avatarBgColor'] ?? const Color(0xFF7C3AED),
+            'selected': isMemberSelected,
           };
         }).toList();
+
     if (_members.isNotEmpty) {
-      _paidByMember = _members.first;
+      if (isEdit) {
+        _paidByMember = _members.firstWhere(
+          (m) =>
+              m['name'].toString().toLowerCase() ==
+              widget.expenseToEdit!.paidBy.toLowerCase(),
+          orElse: () => _members.first,
+        );
+      } else {
+        _paidByMember = _members.first;
+      }
     } else {
       _paidByMember = {
         'id': 'unknown',
@@ -113,8 +141,11 @@ class _AddExpensePageState extends State<AddExpensePage> {
       return;
     }
 
-    // 1. Create the new expense model
     final newExpense = ExpenseModel(
+      id:
+          widget.isEditing && widget.expenseToEdit != null
+              ? widget.expenseToEdit!.id
+              : null,
       title: title,
       amount: amount,
       paidBy: _paidByMember['name'],
@@ -123,20 +154,169 @@ class _AddExpensePageState extends State<AddExpensePage> {
       category: _selectedCategory,
     );
 
-    // 2. Dispatch it to the GroupBloc
-    context.read<GroupBloc>().add(
-      AddExpense(groupName: widget.group.name, expense: newExpense),
-    );
+    if (widget.isEditing && widget.expenseToEdit != null) {
+      context.read<GroupBloc>().add(
+        UpdateExpense(
+          groupId: widget.group.id,
+          expenseId: widget.expenseToEdit!.id,
+          updatedExpense: newExpense,
+        ),
+      );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Expense "$title" saved successfully! 🎉'),
-        backgroundColor: AppColors.expensePositive,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Expense "$title" updated successfully! 🎉'),
+          backgroundColor: AppColors.expensePositive,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else {
+      context.read<GroupBloc>().add(
+        AddExpense(groupId: widget.group.id, expense: newExpense),
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Expense "$title" saved successfully! 🎉'),
+          backgroundColor: AppColors.expensePositive,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
 
     Navigator.of(context).pop();
+  }
+
+  void _deleteExpense() {
+    if (widget.expenseToEdit != null) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            child: Container(
+              padding: const EdgeInsets.all(AppSizes.xl),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFEF2F2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Color(0xFFEF4444),
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(height: AppSizes.l),
+                  const Text(
+                    'Delete Expense',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E293B),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: AppSizes.s),
+                  Text(
+                    'Are you sure you want to delete "${widget.expenseToEdit!.title}"? This action cannot be undone.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF64748B),
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: AppSizes.xl),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF64748B),
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text(
+                            'No',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSizes.m),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            context.read<GroupBloc>().add(
+                              DeleteExpense(
+                                groupId: widget.group.id,
+                                expenseId: widget.expenseToEdit!.id,
+                              ),
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Expense "${widget.expenseToEdit!.title}" deleted successfully! 🗑️',
+                                ),
+                                backgroundColor: const Color(0xFFEF4444),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            Navigator.of(context).pop();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFEF4444),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text(
+                            'Yes',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
   }
 
   @override
@@ -205,7 +385,6 @@ class _AddExpensePageState extends State<AddExpensePage> {
               ),
             ),
 
-            // Bottom Blue Save Button with White Text
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSizes.xxl,
@@ -225,9 +404,9 @@ class _AddExpensePageState extends State<AddExpensePage> {
                     borderRadius: BorderRadius.circular(AppSizes.radiusXL),
                   ),
                 ),
-                child: const Text(
-                  'Save',
-                  style: TextStyle(
+                child: Text(
+                  widget.isEditing ? 'Save Changes' : 'Save',
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.1,
@@ -245,52 +424,6 @@ class _AddExpensePageState extends State<AddExpensePage> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Status indicator dots (similar to the image)
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              '9:41',
-              style: TextStyle(
-                color: Color(0xFF1E293B),
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-              ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1E293B),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Container(
-                  width: 14,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1E293B),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSizes.m),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -324,8 +457,27 @@ class _AddExpensePageState extends State<AddExpensePage> {
               ),
             ),
 
-            // Empty spacer to center the title
-            const SizedBox(width: 40),
+            // Delete button or empty spacer
+            if (widget.isEditing && widget.expenseToEdit != null)
+              GestureDetector(
+                onTap: _deleteExpense,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFFCA5A5)),
+                  ),
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 20,
+                  ),
+                ),
+              )
+            else
+              const SizedBox(width: 40),
           ],
         ),
       ],

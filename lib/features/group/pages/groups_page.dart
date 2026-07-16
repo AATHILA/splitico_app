@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
+import '../bloc/group_bloc.dart';
+import '../bloc/group_state.dart';
 import 'create_group_page.dart';
 import 'group_details_page.dart';
 import '../../../core/models/group.dart';
@@ -17,219 +20,161 @@ class _GroupsPageState extends State<GroupsPage> {
   String _searchQuery = '';
   final _searchController = TextEditingController();
 
-  final List<Map<String, dynamic>> _allGroups = [
-    {
-      'name': 'Goa Trip 2024',
-      'category': 'Travel',
-      'emoji': '🌴',
-      'emojiBg': Color(0xFFEEF2FF), // light purple
-      'membersCount': 4,
-      'expensesCount': 12,
-      'balance': -1240.0,
-      'balanceLabel': 'you owe',
-    },
-    {
-      'name': 'Flat Mates',
-      'category': 'Home',
-      'emoji': '🏠',
-      'emojiBg': Color(0xFFECFDF5), // light green
-      'membersCount': 3,
-      'expensesCount': 8,
-      'balance': 2400.0,
-      'balanceLabel': 'owed to you',
-    },
-    {
-      'name': 'Family',
-      'category': 'Family',
-      'emoji': '👪',
-      'emojiBg': Color(0xFFFFF1F2), // light pink
-      'membersCount': 6,
-      'expensesCount': 5,
-      'balance': 0.0,
-      'balanceLabel': 'settled up',
-    },
-  ];
-
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
-  List<Map<String, dynamic>> get _filteredGroups {
-    return _allGroups.where((group) {
-      final matchesCategory =
-          _selectedCategory == 'All' || group['category'] == _selectedCategory;
-      final matchesSearch = group['name'].toString().toLowerCase().contains(
-        _searchQuery.toLowerCase(),
-      );
-      return matchesCategory && matchesSearch;
-    }).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // soft off-white background
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.xxl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: AppSizes.l),
-              // Header Row: My Groups + New Button
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return BlocBuilder<GroupBloc, GroupState>(
+      builder: (context, state) {
+        List<GroupModel> groupsList = [];
+        if (state is GroupsLoaded) {
+          groupsList = state.groups;
+        }
+
+        final filteredGroups = groupsList.where((group) {
+          final matchesCategory = _selectedCategory == 'All' || group.type == _selectedCategory;
+          final matchesSearch = group.name.toLowerCase().contains(_searchQuery.toLowerCase());
+          return matchesCategory && matchesSearch;
+        }).toList();
+
+        return Scaffold(
+          backgroundColor: const Color(0xFFF8FAFC), // soft off-white background
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSizes.xxl),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'My Groups',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                      letterSpacing: -0.5,
+                  const SizedBox(height: AppSizes.l),
+                  // Header Row: My Groups + New Button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'My Groups',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CreateGroupPage(),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                        ),
+                        child: const Text(
+                          '+ New',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.1,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSizes.l),
+
+                  // Search Bar
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppSizes.radiusXL),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search groups...',
+                        hintStyle: const TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        prefixIcon: const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Text('🔍', style: TextStyle(fontSize: 18)),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppSizes.radiusXL),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppSizes.radiusXL),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppSizes.radiusXL),
+                          borderSide: const BorderSide(
+                            color: AppColors.primary,
+                            width: 1.5,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                     ),
                   ),
-                  ElevatedButton(
-                    onPressed: () async {
-                      final result = await Navigator.push<GroupModel>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const CreateGroupPage(),
-                        ),
-                      );
-                      if (result != null) {
-                        final emojiMap = {
-                          'Travel': '🌴',
-                          'Home': '🏠',
-                          'Friends': '👥',
-                          'Family': '👪',
-                        };
-                        final emojiBgMap = {
-                          'Travel': const Color(0xFFEEF2FF),
-                          'Home': const Color(0xFFECFDF5),
-                          'Friends': const Color(0xFFEFF6FF),
-                          'Family': const Color(0xFFFFF1F2),
-                        };
-                        setState(() {
-                          _allGroups.add({
-                            'name': result.name,
-                            'category': result.type,
-                            'emoji': emojiMap[result.type] ?? '👥',
-                            'emojiBg':
-                                emojiBgMap[result.type] ??
-                                const Color(0xFFEFF6FF),
-                            'membersCount': result.members.length,
-                            'expensesCount': 0,
-                            'balance': 0.0,
-                            'balanceLabel': 'settled up',
-                          });
-                        });
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                    ),
-                    child: const Text(
-                      '+ New',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.1,
-                      ),
-                    ),
+                  const SizedBox(height: AppSizes.l),
+
+                  // Category Filter Chips
+                  _buildCategoryChips(),
+                  const SizedBox(height: AppSizes.l),
+
+                  // Group Cards List
+                  Expanded(
+                    child: filteredGroups.isEmpty
+                        ? _buildEmptyState()
+                        : ListView.builder(
+                            itemCount: filteredGroups.length,
+                            itemBuilder: (context, index) {
+                              return _buildGroupCard(filteredGroups[index]);
+                            },
+                          ),
                   ),
                 ],
               ),
-              const SizedBox(height: AppSizes.l),
-
-              // Search Bar
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppSizes.radiusXL),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Search groups...',
-                    hintStyle: const TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    prefixIcon: const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Text('🔍', style: TextStyle(fontSize: 18)),
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSizes.radiusXL),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSizes.radiusXL),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSizes.radiusXL),
-                      borderSide: const BorderSide(
-                        color: AppColors.primary,
-                        width: 1.5,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSizes.l),
-
-              // Category Filter Chips
-              _buildCategoryChips(),
-              const SizedBox(height: AppSizes.l),
-
-              // Group Cards List
-              Expanded(
-                child:
-                    _filteredGroups.isEmpty
-                        ? _buildEmptyState()
-                        : ListView.builder(
-                          itemCount: _filteredGroups.length,
-                          itemBuilder: (context, index) {
-                            return _buildGroupCard(_filteredGroups[index]);
-                          },
-                        ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   Widget _buildCategoryChips() {
-    final categories = ['All', 'Travel', 'Friends', 'Family'];
+    final categories = ['All', 'Travel', 'Home', 'Friends', 'Family'];
 
     return SizedBox(
       height: 38,
@@ -270,14 +215,39 @@ class _GroupsPageState extends State<GroupsPage> {
     );
   }
 
-  Widget _buildGroupCard(Map<String, dynamic> group) {
-    final name = group['name'] as String;
-    final emoji = group['emoji'] as String;
-    final emojiBg = group['emojiBg'] as Color;
-    final membersCount = group['membersCount'] as int;
-    final expensesCount = group['expensesCount'] as int;
-    final balance = group['balance'] as double;
-    final balanceLabel = group['balanceLabel'] as String;
+  Widget _buildGroupCard(GroupModel group) {
+    final emojiMap = {
+      'Travel': '🌴',
+      'Home': '🏠',
+      'Friends': '👥',
+      'Family': '👪',
+    };
+    final emojiBgMap = {
+      'Travel': const Color(0xFFEEF2FF),
+      'Home': const Color(0xFFECFDF5),
+      'Friends': const Color(0xFFEFF6FF),
+      'Family': const Color(0xFFFFF1F2),
+    };
+
+    final emoji = emojiMap[group.type] ?? '👥';
+    final emojiBg = emojiBgMap[group.type] ?? const Color(0xFFEFF6FF);
+
+    // Resolve balance using mock balances or calculate
+    final String balanceLabel;
+    final double balance;
+    if (group.id == 'goa_trip_2024') {
+      balanceLabel = 'you owe';
+      balance = -1240.0;
+    } else if (group.id == 'flat_mates') {
+      balanceLabel = 'owed to you';
+      balance = 2400.0;
+    } else if (group.id == 'family') {
+      balanceLabel = 'settled up';
+      balance = 0.0;
+    } else {
+      balanceLabel = 'settled up';
+      balance = 0.0;
+    }
 
     Color balanceColor = const Color(0xFF64748B); // default grey
     String balanceText = '₹0';
@@ -295,30 +265,7 @@ class _GroupsPageState extends State<GroupsPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder:
-                (context) => GroupDetailsPage(
-                  group: GroupModel(
-                    name: name,
-                    type: group['category'] ?? 'Friends',
-                    members: const [
-                      {
-                        'name': 'Athila',
-                        'initial': 'A',
-                        'avatarBgColor': Color(0xFF7C3AED),
-                      },
-                      {
-                        'name': 'Riya',
-                        'initial': 'R',
-                        'avatarBgColor': Color(0xFFEC4899),
-                      },
-                      {
-                        'name': 'Kiran',
-                        'initial': 'K',
-                        'avatarBgColor': Color(0xFF10B981),
-                      },
-                    ],
-                  ),
-                ),
+            builder: (context) => GroupDetailsPage(group: group),
           ),
         );
       },
@@ -358,7 +305,7 @@ class _GroupsPageState extends State<GroupsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name,
+                    group.name,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
@@ -367,7 +314,7 @@ class _GroupsPageState extends State<GroupsPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '$membersCount members • $expensesCount expenses',
+                    '${group.members.length} members • ${group.expenses.length} expenses',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

@@ -11,14 +11,15 @@ import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_state.dart';
 
 class CreateGroupPage extends StatefulWidget {
-  const CreateGroupPage({super.key});
+  final GroupModel? groupToEdit;
+  const CreateGroupPage({super.key, this.groupToEdit});
 
   @override
   State<CreateGroupPage> createState() => _CreateGroupPageState();
 }
 
 class _CreateGroupPageState extends State<CreateGroupPage> {
-  final _nameController = TextEditingController(text: '');
+  late final TextEditingController _nameController;
   String _selectedType = 'Travel';
 
   final List<Map<String, String>> _groupTypes = [
@@ -33,20 +34,29 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
   @override
   void initState() {
     super.initState();
-    // Retrieve authenticated user's info to add them as a default member
-    final authState = context.read<AuthBloc>().state;
-    if (authState is AuthAuthenticated && authState.user != null) {
-      final userName = authState.user!.resolvedDisplayName;
-      final initial = userName.isNotEmpty ? userName[0].toUpperCase() : '?';
+    if (widget.groupToEdit != null) {
+      _nameController = TextEditingController(text: widget.groupToEdit!.name);
+      _selectedType = widget.groupToEdit!.type;
+      _members.addAll(widget.groupToEdit!.members.map((m) => Map<String, dynamic>.from(m)));
+    } else {
+      _nameController = TextEditingController(text: '');
+      _selectedType = 'Travel';
+      // Retrieve authenticated user's info to add them as a default member
+      final authState = context.read<AuthBloc>().state;
+      if (authState is AuthAuthenticated && authState.user != null) {
+        final userName = authState.user!.resolvedDisplayName;
+        final initial = userName.isNotEmpty ? userName[0].toUpperCase() : '?';
 
-      _members.add({
-        'name': userName,
-        'initial': initial,
-        'avatarBgColor': const Color(0xFF7C3AED), // Default violet avatar color
-      });
+        _members.add({
+          'name': userName,
+          'initial': initial,
+          'avatarBgColor': const Color(0xFF7C3AED), // Default violet avatar color
+        });
+      }
     }
   }
 
+  @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
@@ -84,11 +94,11 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                       ),
                     ),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Create Group',
+                      widget.groupToEdit != null ? 'Edit Group' : 'Create Group',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF1E293B),
@@ -168,7 +178,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                 ),
               ),
             ),
-            // Bottom Action Button
             Padding(
               padding: const EdgeInsets.all(AppSizes.xxl),
               child: ElevatedButton(
@@ -184,25 +193,49 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                     );
                     return;
                   }
-                  // 1. Create the new group model
-                  final newGroup = GroupModel(
-                    name: _nameController.text.trim(),
-                    type: _selectedType,
-                    members: _members,
-                  );
-                  // 2. Pop the main page and pass the newGroup back to the HomePage
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Group "${_nameController.text}" created successfully! 🎉',
+                  if (widget.groupToEdit != null) {
+                    final updatedGroup = GroupModel(
+                      id: widget.groupToEdit!.id,
+                      name: name,
+                      type: _selectedType,
+                      members: _members,
+                      expenses: widget.groupToEdit!.expenses,
+                    );
+
+                    context.read<GroupBloc>().add(
+                      UpdateGroup(
+                        groupId: widget.groupToEdit!.id,
+                        updatedGroup: updatedGroup,
                       ),
-                      backgroundColor: AppColors.expensePositive,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                  context.read<GroupBloc>().add(AddGroup(newGroup));
-                  Navigator.of(context).pop(newGroup);
+                    );
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Group "$name" updated successfully! 🎉'),
+                        backgroundColor: AppColors.expensePositive,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    Navigator.of(context).pop(updatedGroup);
+                  } else {
+                    final newGroup = GroupModel(
+                      name: name,
+                      type: _selectedType,
+                      members: _members,
+                    );
+
+                    context.read<GroupBloc>().add(AddGroup(newGroup));
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Group "$name" created successfully! 🎉'),
+                        backgroundColor: AppColors.expensePositive,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    Navigator.of(context).pop(newGroup);
+                  }
                 },
 
                 style: ElevatedButton.styleFrom(
@@ -215,9 +248,9 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                     borderRadius: BorderRadius.circular(AppSizes.radiusXL),
                   ),
                 ),
-                child: const Text(
-                  'Create Group 🎉',
-                  style: TextStyle(
+                child: Text(
+                  widget.groupToEdit != null ? 'Save Changes' : 'Create Group 🎉',
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.1,
@@ -230,6 +263,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
       ),
     );
   }
+
 
   Widget _buildSectionHeader(String title) {
     return Text(
