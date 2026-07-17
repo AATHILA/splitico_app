@@ -152,6 +152,10 @@ class _AddExpensePageState extends State<AddExpensePage> {
       splitType: _selectedSplitType,
       splitBetween: _members,
       category: _selectedCategory,
+      dateTime:
+          widget.isEditing && widget.expenseToEdit != null
+              ? widget.expenseToEdit!.dateTime
+              : DateTime.now(),
     );
 
     if (widget.isEditing && widget.expenseToEdit != null) {

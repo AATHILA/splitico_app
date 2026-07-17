@@ -61,7 +61,7 @@ class AppTextStyles {
 
   // Expense Card Titles
   static const TextStyle expenseTitle = TextStyle(
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: FontWeight.bold,
     color: AppColors.textPrimary,
     letterSpacing: -0.1,
@@ -69,7 +69,7 @@ class AppTextStyles {
 
   // Expense Card Subtitles
   static const TextStyle expenseSubtitle = TextStyle(
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: FontWeight.w500,
     color: AppColors.textSecondary,
   );

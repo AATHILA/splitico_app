@@ -45,7 +45,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-    IconData _getCategoryIcon(String category) {
+  IconData _getCategoryIcon(String category) {
     switch (category) {
       case 'Food':
         return Icons.restaurant_rounded;
@@ -60,41 +60,10 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Color _getCategoryBgColor(String category) {
-    switch (category) {
-      case 'Food':
-        return const Color(0xFFEEF2FF); // Soft Indigo/Blue
-      case 'Transport':
-        return const Color(0xFFECFDF5); // Soft Emerald/Green
-      case 'Stay':
-        return const Color(0xFFFEF3C7); // Soft Amber/Yellow
-      case 'Activity':
-        return const Color(0xFFFFF1F2); // Soft Rose/Pink
-      default:
-        return const Color(0xFFF1F5F9); // Soft Grey
-    }
-  }
-
-  Color _getCategoryIconColor(String category) {
-    switch (category) {
-      case 'Food':
-        return const Color(0xFF4F46E5);
-      case 'Transport':
-        return const Color(0xFF059669);
-      case 'Stay':
-        return const Color(0xFFD97706);
-      case 'Activity':
-        return const Color(0xFFE11D48);
-      default:
-        return const Color(0xFF475569);
-    }
-  }
-
-
   Color _getGroupBgColor(String type) {
     switch (type) {
       case 'Travel':
-        return AppColors.groupGoaBg;
+        return const Color(0xFFFEF3C7); // Soft Amber/Yellow
       case 'Home':
         return AppColors.groupFlatBg;
       case 'Friends':
@@ -109,7 +78,7 @@ class _HomePageState extends State<HomePage> {
   Color _getGroupTextColor(String type) {
     switch (type) {
       case 'Travel':
-        return AppColors.groupGoaText;
+        return const Color(0xFFD97706); // Amber
       case 'Home':
         return AppColors.groupFlatText;
       case 'Friends':
@@ -190,15 +159,18 @@ class _HomePageState extends State<HomePage> {
                 final allRecentExpenses = <Map<String, dynamic>>[];
                 for (var group in groups) {
                   for (var expense in group.expenses) {
-                    allRecentExpenses.add({
-                      'group': group,
-                      'expense': expense,
-                    });
+                    allRecentExpenses.add({'group': group, 'expense': expense});
                   }
                 }
 
-                // 2. Show newest expenses first (reverse the list)
-                final recentExpenses = allRecentExpenses.reversed.toList();
+                // 2. Sort them by date/time (newest first)
+
+                allRecentExpenses.sort((a, b) {
+                  final expenseA = a['expense'] as ExpenseModel;
+                  final expenseB = b['expense'] as ExpenseModel;
+                  return expenseB.dateTime.compareTo(expenseA.dateTime);
+                });
+                final recentExpenses = allRecentExpenses;
 
                 return SingleChildScrollView(
                   child: Column(
@@ -249,7 +221,8 @@ class _HomePageState extends State<HomePage> {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
@@ -260,9 +233,8 @@ class _HomePageState extends State<HomePage> {
                                           const SizedBox(width: AppSizes.xs),
                                           Text(
                                             '👋',
-                                            style: AppTextStyles.welcome.copyWith(
-                                              fontSize: 16,
-                                            ),
+                                            style: AppTextStyles.welcome
+                                                .copyWith(fontSize: 16),
                                           ),
                                         ],
                                       ),
@@ -322,37 +294,39 @@ class _HomePageState extends State<HomePage> {
                                 scrollDirection: Axis.horizontal,
                                 clipBehavior: Clip.none,
                                 child: Row(
-                                  children: groups.map((group) {
-                                    final isFirst = groups.indexOf(group) == 0;
-                                    return Padding(
-                                      padding: EdgeInsets.only(
-                                        left: isFirst ? 0 : AppSizes.m,
-                                      ),
-                                      child: GroupChip(
-                                        label: group.name,
-                                        icon: _getGroupIcon(group.type),
-                                        backgroundColor: _getGroupBgColor(
-                                          group.type,
-                                        ),
-                                        textColor: _getGroupTextColor(
-                                          group.type,
-                                        ),
-                                        iconColor: _getGroupTextColor(
-                                          group.type,
-                                        ),
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => GroupDetailsPage(
-                                                group: group,
-                                              ),
+                                  children:
+                                      groups.map((group) {
+                                        final isFirst =
+                                            groups.indexOf(group) == 0;
+                                        return Padding(
+                                          padding: EdgeInsets.only(
+                                            left: isFirst ? 0 : AppSizes.m,
+                                          ),
+                                          child: GroupChip(
+                                            label: group.name,
+                                            icon: _getGroupIcon(group.type),
+                                            backgroundColor: _getGroupBgColor(
+                                              group.type,
                                             ),
-                                          );
-                                        },
-                                      ),
-                                    );
-                                  }).toList(),
+                                            textColor: Colors.black,
+                                            iconColor: _getGroupTextColor(
+                                              group.type,
+                                            ),
+                                            onTap: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder:
+                                                      (context) =>
+                                                          GroupDetailsPage(
+                                                            group: group,
+                                                          ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        );
+                                      }).toList(),
                                 ),
                               ),
                             ],
@@ -382,8 +356,10 @@ class _HomePageState extends State<HomePage> {
                               ...recentExpenses.map((item) {
                                 final group = item['group'] as GroupModel;
                                 final expense = item['expense'] as ExpenseModel;
-                                final isOwed = expense.paidBy.toLowerCase() == 'you' ||
-                                    expense.paidBy.toLowerCase() == displayName.toLowerCase();
+                                final isOwed =
+                                    expense.paidBy.toLowerCase() == 'you' ||
+                                    expense.paidBy.toLowerCase() ==
+                                        displayName.toLowerCase();
 
                                 return ExpenseCard(
                                   title: expense.title,
@@ -392,18 +368,21 @@ class _HomePageState extends State<HomePage> {
                                   amount: expense.amount,
                                   isOwed: isOwed,
                                   icon: _getCategoryIcon(expense.category),
-                                  iconBgColor: _getCategoryBgColor(expense.category),
-                                  iconColor: _getCategoryIconColor(expense.category),
+                                  iconBgColor: _getGroupBgColor(group.type),
+                                  iconColor: _getGroupTextColor(group.type),
+                                  dateTime: expense.dateTime,
                                   onTap: () {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => GroupDetailsPage(group: group),
+                                        builder:
+                                            (context) =>
+                                                GroupDetailsPage(group: group),
                                       ),
                                     );
                                   },
                                 );
-                              }).toList()
+                              }).toList(),
                             ],
                           ],
                         ),

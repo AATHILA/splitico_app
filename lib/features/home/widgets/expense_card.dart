@@ -12,6 +12,7 @@ class ExpenseCard extends StatelessWidget {
   isOwed; // True if "You paid" (shows +₹amount in green), False if others paid (shows -₹amount in red)
   final IconData icon;
   final Color iconBgColor;
+  final DateTime dateTime;
   final Color iconColor;
   final VoidCallback? onTap;
 
@@ -25,8 +26,35 @@ class ExpenseCard extends StatelessWidget {
     required this.icon,
     required this.iconBgColor,
     required this.iconColor,
+    required this.dateTime,
     this.onTap,
   });
+
+  String _formatDateTime(DateTime dt) {
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    final isDifferentYear = dt.year != DateTime.now().year;
+    if (isDifferentYear) {
+      return '${dt.day} ${months[dt.month - 1]} ${dt.year} • $hour:$minute $period';
+    } else {
+      return '${dt.day} ${months[dt.month - 1]} • $hour:$minute $period';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +84,7 @@ class ExpenseCard extends StatelessWidget {
           ],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Category Icon Container
             Container(
@@ -82,18 +111,45 @@ class ExpenseCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: AppSizes.xs),
-                  Text(
-                    '$groupName • $payerName paid',
-                    style: AppTextStyles.expenseSubtitle,
+                  RichText(
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    text: TextSpan(
+                      style: AppTextStyles.expenseSubtitle,
+                      children: [
+                        TextSpan(
+                          text: groupName,
+                          style: const TextStyle(
+                            color: Color(
+                              0xFF334155,
+                            ), // Darker slate color for trip name
+                          ),
+                        ),
+                        const TextSpan(text: ' • '),
+                        TextSpan(text: '$payerName paid'),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: AppSizes.s),
-            // Amount
-            Text(formattedAmount, style: amountStyle),
+
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(formattedAmount, style: amountStyle),
+                const SizedBox(height: 4),
+                Text(
+                  _formatDateTime(dateTime),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF94A3B8), // Nice soft grey color
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

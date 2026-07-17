@@ -6,6 +6,7 @@ class ExpenseModel {
   final String splitType; // e.g., 'Equal', '%', 'Custom'
   final List<Map<String, dynamic>> splitBetween; // Members involved and their selections/shares
   final String category;
+  final DateTime dateTime;
 
   ExpenseModel({
     String? id,
@@ -15,7 +16,9 @@ class ExpenseModel {
     required this.splitType,
     required this.splitBetween,
     this.category = 'Food',
-  }) : id = id ?? DateTime.now().millisecondsSinceEpoch.toString();
+    DateTime? dateTime,
+  }) : id = id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+  dateTime = dateTime ?? DateTime.now();
 
   String get emoji {
     switch (category) {

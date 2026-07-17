@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:splitico/core/models/expense.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../expense/pages/add_expense_page.dart';
@@ -520,7 +521,8 @@ class GroupDetailsPage extends StatelessWidget {
   }
 
   Widget _buildExpensesTimeline(GroupModel currentGroup) {
-    final expenses = currentGroup.expenses;
+    final expenses = List<ExpenseModel>.from(currentGroup.expenses)
+      ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
 
     if (expenses.isEmpty) {
       return const Padding(
