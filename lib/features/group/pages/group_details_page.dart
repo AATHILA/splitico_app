@@ -5,6 +5,8 @@ import '../../../core/constants/app_sizes.dart';
 import '../../expense/pages/add_expense_page.dart';
 import '../../../core/models/group.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../auth/bloc/auth_bloc.dart';
+import '../../auth/bloc/auth_state.dart';
 import '../bloc/group_bloc.dart';
 import '../bloc/group_state.dart';
 import '../bloc/group_event.dart';
@@ -114,15 +116,57 @@ class GroupDetailsPage extends StatelessWidget {
     double topPadding,
     GroupModel currentGroup,
   ) {
+    String displayName = 'Rahul Kumar';
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated && authState.user != null) {
+      displayName = authState.user!.resolvedDisplayName;
+      if (displayName.isNotEmpty) {
+        displayName = displayName[0].toUpperCase() + displayName.substring(1);
+      }
+    }
+
     final totalSpent = currentGroup.expenses.fold<double>(
       0.0,
       (sum, expense) => sum + expense.amount,
     );
-    final userShare =
-        currentGroup.members.isEmpty
-            ? 0.0
-            : totalSpent / currentGroup.members.length;
-    final youOwe = userShare * 0.3;
+
+    double totalYouOwe = 0.0;
+    double totalOwedToYou = 0.0;
+    double userShare = 0.0;
+
+    for (var expense in currentGroup.expenses) {
+      final splitMembers = expense.splitBetween
+          .where((m) => m['selected'] == true)
+          .toList();
+
+      if (splitMembers.isEmpty) continue;
+      final individualShare = expense.amount / splitMembers.length;
+      final isPaidByMe = expense.paidBy.toLowerCase() == 'you' ||
+          expense.paidBy.toLowerCase() == displayName.toLowerCase();
+
+      final amIInSplit = splitMembers.any(
+        (m) => m['name'].toString().toLowerCase() == 'you' ||
+               m['name'].toString().toLowerCase() == displayName.toLowerCase(),
+      );
+
+      if (amIInSplit) {
+        userShare += individualShare;
+      }
+
+      if (isPaidByMe) {
+        if (amIInSplit) {
+          totalOwedToYou += expense.amount - individualShare;
+        } else {
+          totalOwedToYou += expense.amount;
+        }
+      } else {
+        if (amIInSplit) {
+          totalYouOwe += individualShare;
+        }
+      }
+    }
+
+    final netDifference = totalOwedToYou - totalYouOwe;
 
     return Container(
       padding: EdgeInsets.fromLTRB(
@@ -417,9 +461,9 @@ class GroupDetailsPage extends StatelessWidget {
               const SizedBox(width: AppSizes.s),
               Expanded(
                 child: _buildSummaryCard(
-                  title: 'You Owe',
-                  amount: '₹ ${youOwe.toStringAsFixed(2)}',
-                  amountColor: const Color(0xFFFFA726), // warm orange/peach
+                  title: netDifference >= 0 ? 'Owed to You' : 'You Owe',
+                  amount: '₹ ${netDifference.abs().toStringAsFixed(2)}',
+                  amountColor: netDifference >= 0 ? AppColors.owedAmount : AppColors.oweAmount,
                 ),
               ),
             ],
@@ -623,14 +667,28 @@ class GroupDetailsPage extends StatelessWidget {
                         ),
                         const SizedBox(width: AppSizes.s),
 
-                        // Amount
-                        Text(
-                          '₹${expense.amount.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF4C49ED),
-                          ),
+                        // Amount & Date
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '₹${expense.amount.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF4C49ED),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatDateTime(expense.dateTime),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF94A3B8),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -738,6 +796,32 @@ class GroupDetailsPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatDateTime(DateTime dt) {
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    final isDifferentYear = dt.year != DateTime.now().year;
+    if (isDifferentYear) {
+      return '${dt.day} ${months[dt.month - 1]} ${dt.year} • $hour:$minute $period';
+    } else {
+      return '${dt.day} ${months[dt.month - 1]} • $hour:$minute $period';
+    }
   }
 }
 

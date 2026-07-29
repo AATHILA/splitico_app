@@ -172,6 +172,55 @@ class _HomePageState extends State<HomePage> {
                 });
                 final recentExpenses = allRecentExpenses;
 
+                // 3. Calculate dynamic balances
+
+                double totalYouOwe = 0.0;
+                double totalOwedToYou = 0.0;
+
+                for (var group in groups) {
+                  for (var expense in group.expenses) {
+                    final splitMembers =
+                        expense.splitBetween
+                            .where((m) => m['selected'] == true)
+                            .toList();
+
+                    if (splitMembers.isEmpty) continue;
+                    final individualShare =
+                        expense.amount / splitMembers.length;
+                    final isPaidByMe =
+                        expense.paidBy.toLowerCase() == 'you' ||
+                        expense.paidBy.toLowerCase() ==
+                            displayName.toLowerCase();
+
+                    if (isPaidByMe) {
+                      final amIInSplit = splitMembers.any(
+                        (m) =>
+                            m['name'].toString().toLowerCase() == 'you' ||
+                            m['name'].toString().toLowerCase() ==
+                                displayName.toLowerCase(),
+                      );
+
+                      if (amIInSplit) {
+                        totalOwedToYou += expense.amount - individualShare;
+                      } else {
+                        totalOwedToYou += expense.amount;
+                      }
+                    } else {
+                      final amIInSplit = splitMembers.any(
+                        (m) =>
+                            m['name'].toString().toLowerCase() == 'you' ||
+                            m['name'].toString().toLowerCase() ==
+                                displayName.toLowerCase(),
+                      );
+                      if (amIInSplit) {
+                        totalYouOwe += individualShare;
+                      }
+                    }
+                  }
+                }
+
+                final netBalance = totalOwedToYou - totalYouOwe;
+
                 return SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -195,27 +244,7 @@ class _HomePageState extends State<HomePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Top Row representing phone top indicators (9:41, Actions)
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  '9:41',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.more_horiz_rounded),
-                                  color: Colors.white,
-                                  onPressed: () {},
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSizes.xxl),
+
                             // Welcome & Username
                             Row(
                               children: [
@@ -251,10 +280,10 @@ class _HomePageState extends State<HomePage> {
                             const SizedBox(height: AppSizes.xxl),
                             // TODO: Fetch real user balances (youOwe, owedToYou, netBalance) from database/backend.
                             // Balance Card
-                            const BalanceCard(
-                              youOwe: 1240,
-                              owedToYou: 3600,
-                              netBalance: 2360,
+                            BalanceCard(
+                              youOwe: totalYouOwe,
+                              owedToYou: totalOwedToYou,
+                              netBalance: netBalance,
                             ),
                           ],
                         ),
@@ -382,7 +411,7 @@ class _HomePageState extends State<HomePage> {
                                     );
                                   },
                                 );
-                              }).toList(),
+                              }),
                             ],
                           ],
                         ),
