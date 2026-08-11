@@ -457,7 +457,7 @@ class BalancesPage extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  // Avatar
+                  // Avatar  
                   CircleAvatar(
                     radius: 20,
                     backgroundColor: data['avatarColor'] as Color,

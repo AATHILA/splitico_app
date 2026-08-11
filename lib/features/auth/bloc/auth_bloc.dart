@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:splitico/core/bloc/base_bloc.dart';
@@ -49,12 +48,6 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
         password: event.password,
       );
       emit(AuthAuthenticated(user));
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') {
-        emit(const AuthError('There is no such user'));
-      } else {
-        emit(AuthError(e.message ?? 'Login failed'));
-      }
     } catch (e) {
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));
     }
@@ -67,26 +60,11 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
     emit(AuthLoading());
 
     try {
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: event.email,
-            password: event.password,
-          );
-
-      debugPrint("SUCCESS");
-      debugPrint(credential.user?.uid);
-      debugPrint(credential.user?.email);
-
-       if (credential.user != null) {
-        await credential.user!.updateDisplayName(event.name);
-      }
-
-      final user = AppUser(
-        uid: credential.user!.uid,
-        email: credential.user!.email ?? event.email,
-        displayName:
-           event.name
-      ); 
+      final user = await _authRepository.signup(
+        email: event.email,
+        password: event.password,
+        name: event.name,
+      );
       emit(AuthAuthenticated(user));
     } catch (e) {
       debugPrint("ERROR: $e");
@@ -135,17 +113,8 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
 
     try {
       final result = await repository.sendOtp(phoneNumber: event.phoneNumber);
-      if (result.userCredential != null) {
-        final firebaseUser = result.userCredential!.user!;
-        final appUser = AppUser(
-          uid: firebaseUser.uid,
-          email: firebaseUser.email ?? '',
-          displayName:
-              firebaseUser.displayName ??
-              firebaseUser.phoneNumber ??
-              'Phone User',
-        );
-        emit(AuthAuthenticated(appUser));
+      if (result.appUser != null) {
+        emit(AuthAuthenticated(result.appUser!));
       } else if (result.verificationId != null) {
         emit(OtpSent(result.verificationId!));
       } else {
@@ -163,24 +132,13 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
     emit(AuthLoading());
 
     try {
-      final credential = await repository.verifyOtp(
+      final appUser = await repository.verifyOtp(
         verificationId: event.verificationId,
         otp: event.otp,
       );
-
-      final firebaseUser = credential.user!;
-      final appUser = AppUser(
-        uid: firebaseUser.uid,
-        email: firebaseUser.email ?? '',
-        displayName:
-            firebaseUser.displayName ??
-            firebaseUser.phoneNumber ??
-            'Phone User',
-      );
-
       emit(AuthAuthenticated(appUser));
     } catch (e) {
-      emit(AuthError(e.toString()));
+      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
     }
   }
 }

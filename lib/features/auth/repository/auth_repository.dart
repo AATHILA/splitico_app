@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:splitico/features/auth/models/app_user.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthRepository {
   AppUser? _currentUser;
 
   Future<AppUser?> getCurrentUser() async {
-    // TODO: Fetch the actual authenticated user from Firebase Auth or backend API.
     return _currentUser;
   }
 
@@ -15,37 +13,12 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
-    try {
-      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      final user = credential.user;
-
-      if (user == null) {
-        throw Exception('Login failed');
-      }
-
-      return AppUser(
-        uid: user.uid,
-        email: user.email ?? '',
-        displayName: user.displayName ?? '',
-      );
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') {
-        throw Exception('There is no such user');
-      }
-      throw Exception(e.message);
-    }
-  }
-
-  Future<AppUser> signup({
-    required String email,
-    required String password,
-  }) async {
-    // TODO: Replace with real Firebase Auth / backend API signup implementation.
-    // Simulate network delay for the UI
+    // Simulated network delay
     await Future.delayed(const Duration(milliseconds: 800));
+
+    if (email.contains('error')) {
+      throw Exception('Invalid credentials');
+    }
 
     _currentUser = AppUser(
       uid: 'mock-uid-123',
@@ -55,78 +28,60 @@ class AuthRepository {
     return _currentUser!;
   }
 
+  Future<AppUser> signup({
+    required String email,
+    required String password,
+    required String name,
+  }) async {
+    // Simulated network delay
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    _currentUser = AppUser(
+      uid: 'mock-uid-123',
+      email: email,
+      displayName: name,
+    );
+    return _currentUser!;
+  }
+
   Future<void> logout() async {
-    // TODO: Replace with real Firebase Auth / backend API logout implementation.
     await Future.delayed(const Duration(milliseconds: 300));
     _currentUser = null;
   }
 }
 
-
 class PhoneAuthResult {
   final String? verificationId;
-  final UserCredential? userCredential;
+  final AppUser? appUser;
 
-  PhoneAuthResult({this.verificationId, this.userCredential});
+  PhoneAuthResult({this.verificationId, this.appUser});
 }
 
 Future<PhoneAuthResult> sendOtp({
   required String phoneNumber,
 }) async {
-  final completer = Completer<PhoneAuthResult>();
-
   debugPrint('Starting verifyPhoneNumber for $phoneNumber');
-
-  await FirebaseAuth.instance.verifyPhoneNumber(
-    phoneNumber: phoneNumber,
-
-    verificationCompleted: (credential) async {
-      debugPrint('verifyPhoneNumber: verificationCompleted triggered');
-      try {
-        final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
-        if (!completer.isCompleted) {
-          completer.complete(PhoneAuthResult(userCredential: userCredential));
-        }
-      } catch (e) {
-        debugPrint('Error in verificationCompleted sign-in: $e');
-        if (!completer.isCompleted) {
-          completer.completeError(e);
-        }
-      }
-    },
-
-    verificationFailed: (e) {
-      debugPrint('verifyPhoneNumber: verificationFailed triggered: ${e.message}');
-      if (!completer.isCompleted) {
-        completer.completeError(Exception(e.message ?? 'Verification failed'));
-      }
-    },
-
-    codeSent: (verificationId, resendToken) {
-      debugPrint('verifyPhoneNumber: codeSent triggered with verificationId: $verificationId');
-      if (!completer.isCompleted) {
-        completer.complete(PhoneAuthResult(verificationId: verificationId));
-      }
-    },
-
-    codeAutoRetrievalTimeout: (verificationId) {
-      debugPrint('verifyPhoneNumber: codeAutoRetrievalTimeout triggered');
-    },
-  );
-
-  return completer.future;
+  // Simulated network delay
+  await Future.delayed(const Duration(milliseconds: 800));
+  
+  // Return a mock verification ID
+  return PhoneAuthResult(verificationId: 'mock-verification-id-123');
 }
 
-Future<UserCredential> verifyOtp({
+Future<AppUser> verifyOtp({
   required String verificationId,
   required String otp,
 }) async {
-  final credential =
-      PhoneAuthProvider.credential(
-    verificationId: verificationId,
-    smsCode: otp,
-  );
+  // Simulated network delay
+  await Future.delayed(const Duration(milliseconds: 800));
+  
+  if (otp != '123456') {
+    throw Exception('Invalid OTP. Please use code 123456');
+  }
 
-  return FirebaseAuth.instance
-      .signInWithCredential(credential);
+  return AppUser(
+    uid: 'phone-mock-uid-123',
+    email: 'phone-user@splitico.com',
+    displayName: 'Phone User',
+  );
 }
