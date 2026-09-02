@@ -41,3 +41,5 @@ class DeleteExpense extends GroupEvent {
   final String expenseId;
   DeleteExpense({required this.groupId, required this.expenseId});
 }
+
+class LoadGroups extends GroupEvent {}

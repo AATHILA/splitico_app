@@ -15,8 +15,10 @@ import 'package:splitico/features/home/widgets/expense_card.dart';
 import 'package:splitico/features/home/widgets/custom_bottom_nav_bar.dart';
 import 'package:splitico/features/group/pages/create_group_page.dart';
 import 'package:splitico/features/group/pages/groups_page.dart';
+import 'package:splitico/features/group/bloc/group_event.dart';
 import 'package:splitico/features/group/pages/group_details_page.dart';
 import 'package:splitico/features/settlement/pages/balances_page.dart';
+import 'package:splitico/features/analytics/pages/analytics_page.dart';
 import 'package:splitico/features/profile/pages/profile_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -29,6 +31,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _currentTabIndex = 0;
   final List<GroupModel> _customGroups = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Refresh the groups list for the currently logged-in user
+    context.read<GroupBloc>().add(LoadGroups());
+  }
 
   IconData _getGroupIcon(String type) {
     switch (type) {
@@ -150,6 +159,14 @@ class _HomePageState extends State<HomePage> {
 
             return BlocBuilder<GroupBloc, GroupState>(
               builder: (context, groupState) {
+                if (groupState is GroupsLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (groupState is GroupsError) {
+                  return Center(
+                    child: Text('Error loading groups: ${groupState.message}'),
+                  );
+                }
                 List<GroupModel> groups = [];
                 if (groupState is GroupsLoaded) {
                   groups = groupState.groups;
@@ -428,16 +445,7 @@ class _HomePageState extends State<HomePage> {
       case 2:
         return const BalancesPage();
       case 3:
-        return const Center(
-          child: Text(
-            'Analytics Screen',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
-            ),
-          ),
-        );
+        return const AnalyticsPage();
       case 4:
         return const ProfilePage();
       default:

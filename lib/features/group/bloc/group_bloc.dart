@@ -1,111 +1,159 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:splitico/core/models/group.dart';
+import '../repository/group_repository.dart';
 import 'group_event.dart';
 import 'group_state.dart';
 
 class GroupBloc extends Bloc<GroupEvent, GroupState> {
-  GroupBloc() : super(GroupsInitial()) {
-    on<AddGroup>((event, emit) {
-      final currentState = state;
-      if (currentState is GroupsLoaded) {
-        // Emit a new state containing all existing groups + the newly created group
-        emit(GroupsLoaded(List.from(currentState.groups)..add(event.group)));
-      } else {
-        // Emit the first group loaded state
-        emit(GroupsLoaded([event.group]));
+  final GroupRepository _groupRepository;
+
+  GroupBloc(this._groupRepository) : super(GroupsInitial()) {
+    
+    // 1. Handle loading groups from Supabase
+    on<LoadGroups>((event, emit) async {
+      emit(GroupsLoading()); // Optional: Add GroupsLoading state to group_state.dart if needed
+      try {
+        final groups = await _groupRepository.getGroups();
+        emit(GroupsLoaded(groups));
+      } catch (e) {
+        emit(GroupsError(e.toString())); // Optional: Add GroupsError state to group_state.dart if needed
       }
     });
 
-    on<UpdateGroup>((event, emit) {
-      final currentState = state;
-      if (currentState is GroupsLoaded) {
-        final updatedGroups = currentState.groups.map((group) {
-          if (group.id == event.groupId) {
-            return event.updatedGroup;
-          }
-          return group;
-        }).toList();
-        emit(GroupsLoaded(updatedGroups));
+    // 2. Handle creating a new group in Supabase
+    on<AddGroup>((event, emit) async {
+      try {
+        final newGroup = await _groupRepository.createGroup(event.group);
+        final currentState = state;
+        if (currentState is GroupsLoaded) {
+          emit(GroupsLoaded(List.from(currentState.groups)..add(newGroup)));
+        } else {
+          emit(GroupsLoaded([newGroup]));
+        }
+      } catch (e) {
+       print("GroupBloc Error: $e");
       }
     });
 
-    on<DeleteGroup>((event, emit) {
-      final currentState = state;
-      if (currentState is GroupsLoaded) {
-        final updatedGroups = currentState.groups
-            .where((group) => group.id != event.groupId)
-            .toList();
-        emit(GroupsLoaded(updatedGroups));
+    // 3. Handle updating an existing group in Supabase
+    on<UpdateGroup>((event, emit) async {
+      try {
+        final updatedGroup = await _groupRepository.updateGroup(event.groupId, event.updatedGroup);
+        final currentState = state;
+        if (currentState is GroupsLoaded) {
+          final updatedGroups = currentState.groups.map((group) {
+            return group.id == event.groupId ? updatedGroup : group;
+          }).toList();
+          emit(GroupsLoaded(updatedGroups));
+        }
+      } catch (e) {
+       print("GroupBloc Error: $e");
       }
     });
 
-    on<AddExpense>((event, emit) {
-      final currentState = state;
-      if (currentState is GroupsLoaded) {
-        // Map groups and append the new expense to the matching group
-        final updatedGroups = currentState.groups.map((group) {
-          if (group.id == event.groupId) {
-            return GroupModel(
-              id: group.id,
-              name: group.name,
-              type: group.type,
-              members: group.members,
-              expenses: List.from(group.expenses)..add(event.expense),
-            );
-          }
-          return group;
-        }).toList();
-
-        emit(GroupsLoaded(updatedGroups));
+    // 4. Handle deleting a group from Supabase
+    on<DeleteGroup>((event, emit) async {
+      try {
+        await _groupRepository.deleteGroup(event.groupId);
+        final currentState = state;
+        if (currentState is GroupsLoaded) {
+          final updatedGroups = currentState.groups
+              .where((group) => group.id != event.groupId)
+              .toList();
+          emit(GroupsLoaded(updatedGroups));
+        }
+      } catch (e) {
+       print("GroupBloc Error: $e");
       }
     });
 
-    on<UpdateExpense>((event, emit) {
+    // 5. Handle adding an expense to a group
+    on<AddExpense>((event, emit) async {
       final currentState = state;
       if (currentState is GroupsLoaded) {
-        final updatedGroups = currentState.groups.map((group) {
-          if (group.id == event.groupId) {
-            final updatedExpenses = group.expenses.map((expense) {
-              if (expense.id == event.expenseId) {
-                return event.updatedExpense;
-              }
-              return expense;
-            }).toList();
-            return GroupModel(
-              id: group.id,
-              name: group.name,
-              type: group.type,
-              members: group.members,
-              expenses: updatedExpenses,
-            );
-          }
-          return group;
-        }).toList();
-        emit(GroupsLoaded(updatedGroups));
+        try {
+          final targetGroup = currentState.groups.firstWhere((g) => g.id == event.groupId);
+          final updatedGroup = GroupModel(
+            id: targetGroup.id,
+            name: targetGroup.name,
+            type: targetGroup.type,
+            members: targetGroup.members,
+            expenses: List.from(targetGroup.expenses)..add(event.expense),
+          );
+          
+          await _groupRepository.updateGroup(event.groupId, updatedGroup);
+          
+          final updatedGroups = currentState.groups.map((group) {
+            return group.id == event.groupId ? updatedGroup : group;
+          }).toList();
+          
+          emit(GroupsLoaded(updatedGroups));
+        } catch (e) {
+         print("GroupBloc Error: $e");
+        }
       }
     });
 
-    on<DeleteExpense>((event, emit) {
+    // 6. Handle updating an expense in a group
+    on<UpdateExpense>((event, emit) async {
       final currentState = state;
       if (currentState is GroupsLoaded) {
-        final updatedGroups = currentState.groups.map((group) {
-          if (group.id == event.groupId) {
-            final updatedExpenses = group.expenses
-                .where((expense) => expense.id != event.expenseId)
-                .toList();
-            return GroupModel(
-              id: group.id,
-              name: group.name,
-              type: group.type,
-              members: group.members,
-              expenses: updatedExpenses,
-            );
-          }
-          return group;
-        }).toList();
-        emit(GroupsLoaded(updatedGroups));
+        try {
+          final targetGroup = currentState.groups.firstWhere((g) => g.id == event.groupId);
+          final updatedExpenses = targetGroup.expenses.map((expense) {
+            return expense.id == event.expenseId ? event.updatedExpense : expense;
+          }).toList();
+          
+          final updatedGroup = GroupModel(
+            id: targetGroup.id,
+            name: targetGroup.name,
+            type: targetGroup.type,
+            members: targetGroup.members,
+            expenses: updatedExpenses,
+          );
+
+          await _groupRepository.updateGroup(event.groupId, updatedGroup);
+
+          final updatedGroups = currentState.groups.map((group) {
+            return group.id == event.groupId ? updatedGroup : group;
+          }).toList();
+
+          emit(GroupsLoaded(updatedGroups));
+        } catch (e) {
+         print("GroupBloc Error: $e");
+        }
+      }
+    });
+
+    // 7. Handle deleting an expense from a group
+    on<DeleteExpense>((event, emit) async {
+      final currentState = state;
+      if (currentState is GroupsLoaded) {
+        try {
+          final targetGroup = currentState.groups.firstWhere((g) => g.id == event.groupId);
+          final updatedExpenses = targetGroup.expenses
+              .where((expense) => expense.id != event.expenseId)
+              .toList();
+          
+          final updatedGroup = GroupModel(
+            id: targetGroup.id,
+            name: targetGroup.name,
+            type: targetGroup.type,
+            members: targetGroup.members,
+            expenses: updatedExpenses,
+          );
+
+          await _groupRepository.updateGroup(event.groupId, updatedGroup);
+
+          final updatedGroups = currentState.groups.map((group) {
+            return group.id == event.groupId ? updatedGroup : group;
+          }).toList();
+
+          emit(GroupsLoaded(updatedGroups));
+        } catch (e) {
+          print("GroupBloc Error: $e");
+        }
       }
     });
   }
 }
-

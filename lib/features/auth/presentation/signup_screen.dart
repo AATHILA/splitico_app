@@ -29,7 +29,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  void _submitForm() {
+  void _signUp() async{
     if (_formKey.currentState?.validate() ?? false) {
       final name = _nameController.text.trim();
       final email = _emailController.text.trim();
@@ -302,7 +302,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     // Create Account Button
                     ElevatedButton(
-                      onPressed: isLoading ? null : _submitForm,
+                      onPressed: isLoading ? null : _signUp,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
