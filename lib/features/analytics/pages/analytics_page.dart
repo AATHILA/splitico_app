@@ -880,121 +880,136 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       }
     }
 
+    final barWidgets = chartItems.map((item) {
+      final isSelected = _selectedCategory == item.category;
+      final heightFraction = maxAmount > 0 ? (item.amount / maxAmount) : 0.0;
+      final barHeight = (heightFraction * 85).clamp(10.0, 85.0);
+
+      return GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedCategory = isSelected ? null : item.category;
+          });
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              // Percentage / Amount on top of bar
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSelected ? item.color : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${(item.percentage * 100).toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: isSelected ? Colors.white : const Color(0xFF64748B),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              // Bar Column Track
+              Container(
+                width: 38,
+                height: 85,
+                alignment: Alignment.bottomCenter,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  width: 38,
+                  height: barHeight,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        item.color,
+                        item.color.withValues(alpha: 0.75),
+                      ],
+                    ),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(8),
+                      bottom: Radius.circular(4),
+                    ),
+                    border: isSelected
+                        ? Border.all(color: Colors.white, width: 2)
+                        : null,
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: item.color.withValues(alpha: 0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              // Category Emoji
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: item.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                alignment: Alignment.center,
+                child: Text(item.emoji, style: const TextStyle(fontSize: 14)),
+              ),
+              const SizedBox(height: 4),
+              // Category Name
+              SizedBox(
+                width: 56,
+                child: Text(
+                  item.category,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                    color: isSelected ? item.color : const Color(0xFF64748B),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }).toList();
+
     return Column(
       key: const ValueKey('bar_view'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Bar diagram container
+        // Bar diagram container with horizontal scroll support and zero vertical overflow
         SizedBox(
           height: 180,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: chartItems.map((item) {
-              final isSelected = _selectedCategory == item.category;
-              final heightFraction = maxAmount > 0 ? (item.amount / maxAmount) : 0.0;
-              final barHeight = (heightFraction * 105).clamp(14.0, 105.0);
-
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedCategory = isSelected ? null : item.category;
-                  });
-                },
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    // Percentage / Amount on top of bar
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isSelected ? item.color : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '${(item.percentage * 100).toStringAsFixed(0)}%',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: isSelected ? Colors.white : const Color(0xFF64748B),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    // Bar Column
-                    Container(
-                      width: 36,
-                      height: 105,
-                      alignment: Alignment.bottomCenter,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        width: 36,
-                        height: barHeight,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              item.color,
-                              item.color.withValues(alpha: 0.75),
-                            ],
-                          ),
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(8),
-                            bottom: Radius.circular(4),
-                          ),
-                          border: isSelected
-                              ? Border.all(color: Colors.white, width: 2)
-                              : null,
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: item.color.withValues(alpha: 0.4),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    // Category Emoji
-                    Container(
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: item.color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(item.emoji, style: const TextStyle(fontSize: 13)),
-                    ),
-                    const SizedBox(height: 4),
-                    // Category Name
-                    SizedBox(
-                      width: 48,
-                      child: Text(
-                        item.category,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                          color: isSelected ? item.color : const Color(0xFF64748B),
-                        ),
-                      ),
-                    ),
-                  ],
+          child: chartItems.length <= 4
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: barWidgets,
+                )
+              : SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: barWidgets,
+                  ),
                 ),
-              );
-            }).toList(),
-          ),
         ),
         const SizedBox(height: 14),
         // Selected Bar details card or guide

@@ -6,6 +6,8 @@ import 'package:splitico/features/auth/bloc/auth_bloc.dart';
 import 'package:splitico/features/auth/bloc/auth_event.dart';
 import 'package:splitico/features/auth/bloc/auth_state.dart';
 import 'package:splitico/features/auth/presentation/login_screen.dart';
+import 'package:splitico/features/group/bloc/group_bloc.dart';
+import 'package:splitico/features/group/bloc/group_state.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -26,6 +28,11 @@ class _ProfilePageState extends State<ProfilePage> {
     'GBP £',
     'JPY ¥',
   ];
+  String get _currencySymbol {
+  final parts = _selectedCurrency.split(' ');
+  return parts.length > 1 ? parts.last : '₹';
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -94,177 +101,203 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildHeaderWithStats(BuildContext context, double topPadding) {
     return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) {
-        String displayName = 'Rahul Kumar';
-        String email = 'rahul.kumar@gmail.com';
-        String initials = 'RK';
+      builder: (context, authState) {
+        String displayName = 'User';
+        String email = 'No email provided';
+        String initials = 'U';
 
-        if (state is AuthAuthenticated && state.user != null) {
-          final user = state.user!;
-          email = user.email.isNotEmpty ? user.email : 'No email';
+        if (authState is AuthAuthenticated && authState.user != null) {
+          final user = authState.user!;
+          email = user.email.isNotEmpty ? user.email : 'No email provided';
           displayName = user.resolvedDisplayName;
-          
+
           // Nicely capitalize display name
           if (displayName.isNotEmpty) {
             displayName = displayName[0].toUpperCase() + displayName.substring(1);
           }
 
           // Compute initials
-          final parts = displayName.trim().split(RegExp(r'\s+'));
+          final parts = displayName.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
           if (parts.length > 1) {
             initials = (parts[0][0] + parts[1][0]).toUpperCase();
-          } else if (displayName.length > 1) {
-            initials = displayName.substring(0, 2).toUpperCase();
           } else if (displayName.isNotEmpty) {
             initials = displayName[0].toUpperCase();
           }
         }
 
-        return Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.center,
-          children: [
-            // Gradient Header Background
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.fromLTRB(
-                AppSizes.xxl,
-                topPadding + AppSizes.l,
-                AppSizes.xxl,
-                AppSizes.xxxl * 1.8,
-              ),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF6C63FF), // Vibrant purple-indigo
-                    Color(0xFF4C49ED), // Primary purple
-                    Color(0xFF3B38B8), // Deep purple
-                  ],
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(AppSizes.radiusXXL),
-                  bottomRight: Radius.circular(AppSizes.radiusXXL),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0x334C49ED),
-                    blurRadius: 20,
-                    offset: Offset(0, 10),
+        return BlocBuilder<GroupBloc, GroupState>(
+          builder: (context, groupState) {
+            int groupCount = 0;
+            int expenseCount = 0;
+            double totalTrackedAmount = 0.0;
+            bool isLoading = groupState is GroupsLoading;
+
+            if (groupState is GroupsLoaded) {
+              final groups = groupState.groups;
+              groupCount = groups.length;
+
+              for (final group in groups) {
+                expenseCount += group.expenses.length;
+                for (final expense in group.expenses) {
+                  totalTrackedAmount += expense.amount;
+                }
+              }
+            }
+
+            final trackedAmountStr = isLoading
+                ? '...'
+                : '$_currencySymbol${totalTrackedAmount.toStringAsFixed(totalTrackedAmount % 1 == 0 ? 0 : 2)}';
+
+            final groupCountStr = isLoading ? '...' : groupCount.toString();
+            final expenseCountStr = isLoading ? '...' : expenseCount.toString();
+
+            return Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                // Gradient Header Background
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.fromLTRB(
+                    AppSizes.xxl,
+                    topPadding + AppSizes.l,
+                    AppSizes.xxl,
+                    AppSizes.xxxl * 1.8,
                   ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // App Bar Title & Subtitle Mock Status Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        '9:41',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.settings_rounded),
-                        color: Colors.white,
-                        onPressed: () {},
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFF6C63FF), // Vibrant purple-indigo
+                        Color(0xFF4C49ED), // Primary purple
+                        Color(0xFF3B38B8), // Deep purple
+                      ],
+                    ),
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(AppSizes.radiusXXL),
+                      bottomRight: Radius.circular(AppSizes.radiusXXL),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0x334C49ED),
+                        blurRadius: 20,
+                        offset: Offset(0, 10),
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppSizes.s),
+                  child: Column(
+                    children: [
+                      // App Bar Title & Subtitle Mock Status Row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            '9:41',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.settings_rounded),
+                            color: Colors.white,
+                            onPressed: () {},
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSizes.s),
 
-                  // Circular Profile Avatar with Ring
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 4),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 10,
-                          offset: const Offset(0, 6),
+                      // Circular Profile Avatar with Ring
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 10,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: CircleAvatar(
-                      radius: 44,
-                      backgroundColor: Colors.white,
-                      child: Text(
-                        initials,
+                        child: CircleAvatar(
+                          radius: 44,
+                          backgroundColor: Colors.white,
+                          child: Text(
+                            initials,
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSizes.m),
+
+                      // Name
+                      Text(
+                        displayName,
                         style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 28,
+                          fontSize: 22,
                           fontWeight: FontWeight.w800,
+                          color: Colors.white,
                           letterSpacing: -0.5,
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSizes.m),
+                      const SizedBox(height: 4),
 
-                  // Name
-                  Text(
-                    displayName,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
+                      // Email
+                      Text(
+                        email,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white.withValues(alpha: 0.75),
+                        ),
+                      ),
+                      const SizedBox(height: AppSizes.xl),
+                    ],
+                  ),
+                ),
+
+                // Overlapping Stats Card
+                Positioned(
+                  bottom: -28,
+                  left: AppSizes.xxl,
+                  right: AppSizes.xxl,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: AppSizes.l),
+                    decoration: BoxDecoration(
                       color: Colors.white,
-                      letterSpacing: -0.5,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                      border: Border.all(color: const Color(0xFFF1F5F9)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildStatItem('Groups', groupCountStr),
+                        _buildStatDivider(),
+                        _buildStatItem('Expenses', expenseCountStr),
+                        _buildStatDivider(),
+                        _buildStatItem('Tracked Amount', trackedAmountStr, isAmount: true),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-
-                  // Email
-                  Text(
-                    email,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white.withValues(alpha: 0.75),
-                    ),
-                  ),
-                  const SizedBox(height: AppSizes.xl),
-                ],
-              ),
-            ),
-
-            // Overlapping Stats Card
-            Positioned(
-              bottom: -28,
-              left: AppSizes.xxl,
-              right: AppSizes.xxl,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: AppSizes.l),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                  border: Border.all(color: const Color(0xFFF1F5F9)),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildStatItem('Groups', '5'),
-                    _buildStatDivider(),
-                    _buildStatItem('Expenses', '42'),
-                    _buildStatDivider(),
-                    _buildStatItem('Tracked Amount', '₹12,450', isAmount: true),
-                  ],
-                ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         );
       },
     );
