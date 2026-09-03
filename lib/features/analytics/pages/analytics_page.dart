@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
@@ -10,6 +11,7 @@ import '../../group/bloc/group_bloc.dart';
 import '../../group/bloc/group_state.dart';
 
 enum AnalyticsPeriod { thisMonth, allTime }
+enum CategoryChartType { donut, bar, list }
 
 class AnalyticsPage extends StatefulWidget {
   const AnalyticsPage({super.key});
@@ -20,6 +22,8 @@ class AnalyticsPage extends StatefulWidget {
 
 class _AnalyticsPageState extends State<AnalyticsPage> {
   AnalyticsPeriod _selectedPeriod = AnalyticsPeriod.allTime;
+  CategoryChartType _chartType = CategoryChartType.donut;
+  String? _selectedCategory;
 
   List<ExpenseModel> _filterExpensesByPeriod(List<ExpenseModel> allExpenses) {
     final now = DateTime.now();
@@ -413,20 +417,99 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     final sortedList = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
+    if (sortedList.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // Build chart data items with angles
+    final double totalGap = sortedList.length > 1 ? sortedList.length * 0.04 : 0.0;
+    final double availableSweep = (2 * math.pi) - totalGap;
+    double currentAngle = -math.pi / 2;
+
+    final List<_CategoryChartData> chartItems = [];
+    for (var entry in sortedList) {
+      final category = entry.key;
+      final amount = entry.value;
+      final percent = totalSpend > 0 ? (amount / totalSpend) : 0.0;
+      final sweep = percent * availableSweep;
+      chartItems.add(_CategoryChartData(
+        category: category,
+        amount: amount,
+        percentage: percent,
+        color: _getCategoryColor(category),
+        emoji: _getCategoryEmoji(category),
+        startAngle: currentAngle,
+        sweepAngle: sweep,
+      ));
+      currentAngle += sweep + (sortedList.length > 1 ? 0.04 : 0.0);
+    }
+
+    final topCategory = sortedList.first;
+    final topPercent = totalSpend > 0 ? (topCategory.value / totalSpend * 100).toStringAsFixed(0) : '0';
+    final topEmoji = _getCategoryEmoji(topCategory.key);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Where your money went',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF1E293B),
-            letterSpacing: -0.3,
+        // Section Header with View Mode Switcher
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Where your money went',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1E293B),
+                letterSpacing: -0.3,
+              ),
+            ),
+            _buildChartTypeToggle(),
+          ],
+        ),
+        const SizedBox(height: AppSizes.s),
+        // Top highlight banner
+        Container(
+          margin: const EdgeInsets.only(bottom: AppSizes.m),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: _getCategoryColor(topCategory.key).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: _getCategoryColor(topCategory.key).withValues(alpha: 0.2),
+            ),
+          ),
+          child: Row(
+            children: [
+              Text(topEmoji, style: const TextStyle(fontSize: 14)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    text: 'Largest spend: ',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF475569),
+                    ),
+                    children: [
+                      TextSpan(
+                        text: '${topCategory.key} ($topPercent% of total)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: _getCategoryColor(topCategory.key),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: AppSizes.m),
+        // Chart / Visual Content Container
         Container(
+          width: double.infinity,
           padding: const EdgeInsets.all(AppSizes.l),
           decoration: BoxDecoration(
             color: Colors.white,
@@ -440,78 +523,471 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               ),
             ],
           ),
-          child: Column(
-            children: sortedList.map((entry) {
-              final category = entry.key;
-              final amount = entry.value;
-              final percent = totalSpend > 0 ? (amount / totalSpend) : 0.0;
-              final color = _getCategoryColor(category);
-              final emoji = _getCategoryEmoji(category);
-              final isLast = sortedList.indexOf(entry) == sortedList.length - 1;
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _buildSelectedChartView(chartItems, sortedList, totalSpend),
+          ),
+        ),
+      ],
+    );
+  }
 
-              return Padding(
-                padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        // Category Icon
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
+  Widget _buildChartTypeToggle() {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildChartTypeOption(
+            type: CategoryChartType.donut,
+            icon: Icons.pie_chart_rounded,
+            tooltip: 'Donut Chart',
+          ),
+          _buildChartTypeOption(
+            type: CategoryChartType.bar,
+            icon: Icons.bar_chart_rounded,
+            tooltip: 'Bar Diagram',
+          ),
+          _buildChartTypeOption(
+            type: CategoryChartType.list,
+            icon: Icons.format_list_bulleted_rounded,
+            tooltip: 'List View',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartTypeOption({
+    required CategoryChartType type,
+    required IconData icon,
+    required String tooltip,
+  }) {
+    final isSelected = _chartType == type;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _chartType = type;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(7),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Icon(
+          icon,
+          size: 17,
+          color: isSelected ? AppColors.primary : const Color(0xFF64748B),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectedChartView(
+    List<_CategoryChartData> chartItems,
+    List<MapEntry<String, double>> sortedList,
+    double totalSpend,
+  ) {
+    switch (_chartType) {
+      case CategoryChartType.donut:
+        return _buildDonutChartView(chartItems, totalSpend);
+      case CategoryChartType.bar:
+        return _buildBarChartView(chartItems, totalSpend);
+      case CategoryChartType.list:
+        return _buildListBreakdownView(sortedList, totalSpend);
+    }
+  }
+
+  Widget _buildDonutChartView(List<_CategoryChartData> chartItems, double totalSpend) {
+    _CategoryChartData? selectedItem;
+    if (_selectedCategory != null) {
+      try {
+        selectedItem = chartItems.firstWhere((e) => e.category == _selectedCategory);
+      } catch (_) {
+        selectedItem = null;
+      }
+    }
+
+    return Column(
+      key: const ValueKey('donut_view'),
+      children: [
+        // Donut Chart with Interactive Tap & Center Info
+        Center(
+          child: SizedBox(
+            width: 190,
+            height: 190,
+            child: GestureDetector(
+              onTapUp: (details) => _handleDonutTap(details.localPosition, const Size(190, 190), chartItems),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  CustomPaint(
+                    size: const Size(190, 190),
+                    painter: _DonutChartPainter(
+                      items: chartItems,
+                      selectedCategory: _selectedCategory,
+                    ),
+                  ),
+                  // Center Info Hole
+                  GestureDetector(
+                    onTap: () {
+                      if (_selectedCategory != null) {
+                        setState(() => _selectedCategory = null);
+                      }
+                    },
+                    child: Container(
+                      width: 112,
+                      height: 112,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (selectedItem?.color ?? AppColors.primary).withValues(alpha: 0.08),
+                            blurRadius: 10,
+                            spreadRadius: 2,
                           ),
-                          alignment: Alignment.center,
-                          child: Text(emoji, style: const TextStyle(fontSize: 18)),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (selectedItem != null) ...[
+                            Text(selectedItem.emoji, style: const TextStyle(fontSize: 20)),
+                            const SizedBox(height: 2),
+                            Text(
+                              selectedItem.category,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                            Text(
+                              '₹${selectedItem.amount.toStringAsFixed(selectedItem.amount % 1 == 0 ? 0 : 2)}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF1E293B),
+                              ),
+                            ),
+                            Text(
+                              '${(selectedItem.percentage * 100).toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: selectedItem.color,
+                              ),
+                            ),
+                          ] else ...[
+                            const Text(
+                              'TOTAL SPEND',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF94A3B8),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '₹${totalSpend.toStringAsFixed(totalSpend % 1 == 0 ? 0 : 2)}',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF1E293B),
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              '${chartItems.length} categories',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        const Text(
+          'Tap any slice or category below to inspect details',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF94A3B8),
+          ),
+        ),
+        const SizedBox(height: 14),
+        const Divider(height: 1, color: Color(0xFFF1F5F9)),
+        const SizedBox(height: 12),
+        // Interactive Category Legend List
+        ...chartItems.map((item) {
+          final isSelected = _selectedCategory == item.category;
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedCategory = isSelected ? null : item.category;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? item.color.withValues(alpha: 0.08) : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isSelected ? item.color.withValues(alpha: 0.3) : Colors.transparent,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: item.color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(item.emoji, style: const TextStyle(fontSize: 15)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      item.category,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                        color: const Color(0xFF1E293B),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: item.color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${(item.percentage * 100).toStringAsFixed(0)}%',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: item.color,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    '₹${item.amount.toStringAsFixed(item.amount % 1 == 0 ? 0 : 2)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                      color: const Color(0xFF1E293B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  void _handleDonutTap(Offset localPosition, Size size, List<_CategoryChartData> chartItems) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final dx = localPosition.dx - center.dx;
+    final dy = localPosition.dy - center.dy;
+    final dist = math.sqrt(dx * dx + dy * dy);
+    final baseRadius = math.min(size.width, size.height) / 2 * 0.88;
+    const strokeWidth = 26.0;
+    final innerRadius = baseRadius - (strokeWidth / 2);
+    final outerRadius = baseRadius + (strokeWidth / 2);
+
+    if (dist < innerRadius - 10) {
+      if (_selectedCategory != null) {
+        setState(() => _selectedCategory = null);
+      }
+      return;
+    }
+
+    if (dist >= innerRadius - 15 && dist <= outerRadius + 20) {
+      final rawAngle = math.atan2(dy, dx);
+      double angle = rawAngle - (-math.pi / 2);
+      while (angle < 0) {
+        angle += 2 * math.pi;
+      }
+      while (angle >= 2 * math.pi) {
+        angle -= 2 * math.pi;
+      }
+
+      double currentNormalizedStart = 0.0;
+      for (var item in chartItems) {
+        final sweepWithGap = item.sweepAngle + (chartItems.length > 1 ? 0.04 : 0.0);
+        if (angle >= currentNormalizedStart && angle <= currentNormalizedStart + sweepWithGap) {
+          setState(() {
+            if (_selectedCategory == item.category) {
+              _selectedCategory = null;
+            } else {
+              _selectedCategory = item.category;
+            }
+          });
+          return;
+        }
+        currentNormalizedStart += sweepWithGap;
+      }
+    }
+  }
+
+  Widget _buildBarChartView(List<_CategoryChartData> chartItems, double totalSpend) {
+    final double maxAmount = chartItems.map((e) => e.amount).fold(0.0, math.max);
+
+    _CategoryChartData? selectedItem;
+    if (_selectedCategory != null) {
+      try {
+        selectedItem = chartItems.firstWhere((e) => e.category == _selectedCategory);
+      } catch (_) {
+        selectedItem = null;
+      }
+    }
+
+    return Column(
+      key: const ValueKey('bar_view'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Bar diagram container
+        SizedBox(
+          height: 180,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: chartItems.map((item) {
+              final isSelected = _selectedCategory == item.category;
+              final heightFraction = maxAmount > 0 ? (item.amount / maxAmount) : 0.0;
+              final barHeight = (heightFraction * 105).clamp(14.0, 105.0);
+
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedCategory = isSelected ? null : item.category;
+                  });
+                },
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // Percentage / Amount on top of bar
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isSelected ? item.color : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${(item.percentage * 100).toStringAsFixed(0)}%',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: isSelected ? Colors.white : const Color(0xFF64748B),
                         ),
-                        const SizedBox(width: 12),
-                        // Name and percentage
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                category,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1E293B),
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${(percent * 100).toStringAsFixed(0)}% of total',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: color,
-                                ),
-                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    // Bar Column
+                    Container(
+                      width: 36,
+                      height: 105,
+                      alignment: Alignment.bottomCenter,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        width: 36,
+                        height: barHeight,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              item.color,
+                              item.color.withValues(alpha: 0.75),
                             ],
                           ),
-                        ),
-                        // Total Amount
-                        Text(
-                          '₹${amount.toStringAsFixed(amount % 1 == 0 ? 0 : 2)}',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF1E293B),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(8),
+                            bottom: Radius.circular(4),
                           ),
+                          border: isSelected
+                              ? Border.all(color: Colors.white, width: 2)
+                              : null,
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: item.color.withValues(alpha: 0.4),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
                         ),
-                      ],
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    // Visual progress bar
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: percent.clamp(0.0, 1.0),
-                        minHeight: 6,
-                        backgroundColor: const Color(0xFFF1F5F9),
-                        valueColor: AlwaysStoppedAnimation<Color>(color),
+                    // Category Emoji
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: item.color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(item.emoji, style: const TextStyle(fontSize: 13)),
+                    ),
+                    const SizedBox(height: 4),
+                    // Category Name
+                    SizedBox(
+                      width: 48,
+                      child: Text(
+                        item.category,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                          color: isSelected ? item.color : const Color(0xFF64748B),
+                        ),
                       ),
                     ),
                   ],
@@ -520,7 +996,148 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             }).toList(),
           ),
         ),
+        const SizedBox(height: 14),
+        // Selected Bar details card or guide
+        if (selectedItem != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: selectedItem.color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: selectedItem.color.withValues(alpha: 0.25)),
+            ),
+            child: Row(
+              children: [
+                Text(selectedItem.emoji, style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        selectedItem.category,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      Text(
+                        '${(selectedItem.percentage * 100).toStringAsFixed(1)}% of total spend',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: selectedItem.color,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '₹${selectedItem.amount.toStringAsFixed(selectedItem.amount % 1 == 0 ? 0 : 2)}',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          const Center(
+            child: Text(
+              'Tap any bar to inspect amount and details',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF94A3B8),
+              ),
+            ),
+          ),
       ],
+    );
+  }
+
+  Widget _buildListBreakdownView(
+    List<MapEntry<String, double>> sortedList,
+    double totalSpend,
+  ) {
+    return Column(
+      key: const ValueKey('list_view'),
+      children: sortedList.map((entry) {
+        final category = entry.key;
+        final amount = entry.value;
+        final percent = totalSpend > 0 ? (amount / totalSpend) : 0.0;
+        final color = _getCategoryColor(category);
+        final emoji = _getCategoryEmoji(category);
+        final isLast = sortedList.indexOf(entry) == sortedList.length - 1;
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(emoji, style: const TextStyle(fontSize: 18)),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          category,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1E293B),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${(percent * 100).toStringAsFixed(0)}% of total',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '₹${amount.toStringAsFixed(amount % 1 == 0 ? 0 : 2)}',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: percent.clamp(0.0, 1.0),
+                  minHeight: 6,
+                  backgroundColor: const Color(0xFFF1F5F9),
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -775,3 +1392,91 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     }
   }
 }
+
+class _CategoryChartData {
+  final String category;
+  final double amount;
+  final double percentage;
+  final Color color;
+  final String emoji;
+  final double startAngle;
+  final double sweepAngle;
+
+  const _CategoryChartData({
+    required this.category,
+    required this.amount,
+    required this.percentage,
+    required this.color,
+    required this.emoji,
+    required this.startAngle,
+    required this.sweepAngle,
+  });
+}
+
+class _DonutChartPainter extends CustomPainter {
+  final List<_CategoryChartData> items;
+  final String? selectedCategory;
+
+  _DonutChartPainter({
+    required this.items,
+    this.selectedCategory,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (items.isEmpty) return;
+    final center = Offset(size.width / 2, size.height / 2);
+    final baseRadius = math.min(size.width, size.height) / 2 * 0.88;
+    const strokeWidth = 24.0;
+
+    // Subtle background track ring
+    final bgPaint = Paint()
+      ..color = const Color(0xFFF1F5F9)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+    canvas.drawCircle(center, baseRadius, bgPaint);
+
+    for (var item in items) {
+      final isSelected = item.category == selectedCategory;
+      final radius = isSelected ? baseRadius + 4 : baseRadius;
+      final itemStrokeWidth = isSelected ? strokeWidth + 6 : strokeWidth;
+
+      final paint = Paint()
+        ..color = item.color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = itemStrokeWidth
+        ..strokeCap = StrokeCap.round;
+
+      if (isSelected) {
+        // Draw glowing effect behind selected slice
+        final glowPaint = Paint()
+          ..color = item.color.withValues(alpha: 0.35)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = itemStrokeWidth + 6
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+        canvas.drawArc(
+          Rect.fromCircle(center: center, radius: radius),
+          item.startAngle,
+          math.max(0.01, item.sweepAngle),
+          false,
+          glowPaint,
+        );
+      }
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        item.startAngle,
+        math.max(0.01, item.sweepAngle),
+        false,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DonutChartPainter oldDelegate) {
+    return oldDelegate.selectedCategory != selectedCategory ||
+        oldDelegate.items != items;
+  }
+}
+
