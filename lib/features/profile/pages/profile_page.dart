@@ -8,6 +8,8 @@ import 'package:splitico/features/auth/bloc/auth_state.dart';
 import 'package:splitico/features/auth/presentation/login_screen.dart';
 import 'package:splitico/features/group/bloc/group_bloc.dart';
 import 'package:splitico/features/group/bloc/group_state.dart';
+import 'package:splitico/core/theme/theme_cubit.dart';
+
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -17,7 +19,6 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  bool _isDarkMode = false;
   bool _notificationsEnabled = true;
   String _selectedCurrency = 'INR ₹';
 
@@ -28,16 +29,17 @@ class _ProfilePageState extends State<ProfilePage> {
     'GBP £',
     'JPY ¥',
   ];
-  String get _currencySymbol {
-  final parts = _selectedCurrency.split(' ');
-  return parts.length > 1 ? parts.last : '₹';
-}
 
+  String get _currencySymbol {
+    final parts = _selectedCurrency.split(' ');
+    return parts.length > 1 ? parts.last : '₹';
+  }
 
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
     final topPadding = mediaQuery.padding.top;
+    final isDarkMode = context.watch<ThemeCubit>().isDarkMode;
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
@@ -58,7 +60,7 @@ class _ProfilePageState extends State<ProfilePage> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC), // soft off-white background
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           child: Column(
@@ -72,7 +74,7 @@ class _ProfilePageState extends State<ProfilePage> {
               // 2. Settings Card (Dark Mode, Currency, Notifications)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSizes.xxl),
-                child: _buildSettingsCard(context),
+                child: _buildSettingsCard(context, isDarkMode),
               ),
 
               const SizedBox(height: AppSizes.l),
@@ -80,7 +82,7 @@ class _ProfilePageState extends State<ProfilePage> {
               // 3. Support Card (Privacy & Security, Help & Support)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSizes.xxl),
-                child: _buildSupportCard(context),
+                child: _buildSupportCard(context, isDarkMode),
               ),
 
               const SizedBox(height: AppSizes.xxl),
@@ -88,7 +90,7 @@ class _ProfilePageState extends State<ProfilePage> {
               // 4. Sign Out Button
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSizes.xxl),
-                child: _buildSignOutButton(context),
+                child: _buildSignOutButton(context, isDarkMode),
               ),
 
               const SizedBox(height: AppSizes.xxxl),
@@ -272,7 +274,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: AppSizes.l),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
@@ -281,16 +283,16 @@ class _ProfilePageState extends State<ProfilePage> {
                           offset: const Offset(0, 8),
                         ),
                       ],
-                      border: Border.all(color: const Color(0xFFF1F5F9)),
+                      border: Border.all(color: Theme.of(context).dividerColor),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _buildStatItem('Groups', groupCountStr),
-                        _buildStatDivider(),
-                        _buildStatItem('Expenses', expenseCountStr),
-                        _buildStatDivider(),
-                        _buildStatItem('Tracked Amount', trackedAmountStr, isAmount: true),
+                        _buildStatItem(context, 'Groups', groupCountStr),
+                        _buildStatDivider(context),
+                        _buildStatItem(context, 'Expenses', expenseCountStr),
+                        _buildStatDivider(context),
+                        _buildStatItem(context, 'Tracked Amount', trackedAmountStr, isAmount: true),
                       ],
                     ),
                   ),
@@ -303,7 +305,8 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, {bool isAmount = false}) {
+  Widget _buildStatItem(BuildContext context, String label, String value, {bool isAmount = false}) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Expanded(
       child: Column(
         children: [
@@ -313,7 +316,7 @@ class _ProfilePageState extends State<ProfilePage> {
             style: TextStyle(
               fontSize: isAmount ? 18 : 19,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: onSurface,
               letterSpacing: -0.5,
             ),
           ),
@@ -321,10 +324,10 @@ class _ProfilePageState extends State<ProfilePage> {
           Text(
             label,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
+              color: onSurface.withValues(alpha: 0.6),
             ),
           ),
         ],
@@ -332,18 +335,20 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildStatDivider() {
+  Widget _buildStatDivider(BuildContext context) {
     return Container(
       width: 1,
       height: 32,
-      color: const Color(0xFFF1F5F9),
+      color: Theme.of(context).dividerColor,
     );
   }
 
-  Widget _buildSettingsCard(BuildContext context) {
+  Widget _buildSettingsCard(BuildContext context, bool isDarkMode) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -352,35 +357,36 @@ class _ProfilePageState extends State<ProfilePage> {
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         children: [
           // Row 1: Dark Mode
           _buildSettingsRow(
+            context: context,
             icon: Icons.dark_mode_rounded,
             iconColor: const Color(0xFFFFA726), // warm yellow
-            iconBgColor: const Color(0xFFFFF7ED), // light yellow/lavender
+            iconBgColor: isDarkMode ? const Color(0xFF334155) : const Color(0xFFFFF7ED),
             title: 'Dark Mode',
             trailing: Switch.adaptive(
-              value: _isDarkMode,
+              value: isDarkMode,
               activeTrackColor: AppColors.primary,
               onChanged: (value) {
-                setState(() {
-                  _isDarkMode = value;
-                });
+                context.read<ThemeCubit>().toggleTheme(value);
               },
             ),
           ),
-          _buildItemDivider(),
+          _buildItemDivider(context),
 
           // Row 2: Currency Selection
           _buildSettingsRow(
+            context: context,
             icon: Icons.sync_rounded,
             iconColor: AppColors.primary,
-            iconBgColor: const Color(0xFFEEF2FF), // light lavender/indigo
+            iconBgColor: isDarkMode ? const Color(0xFF312E81) : const Color(0xFFEEF2FF),
             title: 'Currency',
             trailing: PopupMenuButton<String>(
+              color: Theme.of(context).cardColor,
               onSelected: (currency) {
                 setState(() {
                   _selectedCurrency = currency;
@@ -392,9 +398,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     value: currency,
                     child: Text(
                       currency,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: onSurface,
                       ),
                     ),
                   );
@@ -405,33 +411,34 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   Text(
                     _selectedCurrency,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
+                      color: onSurface.withValues(alpha: 0.7),
                     ),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(
+                  Icon(
                     Icons.arrow_drop_down_rounded,
-                    color: AppColors.textSecondary,
+                    color: onSurface.withValues(alpha: 0.7),
                     size: 20,
                   ),
                 ],
               ),
             ),
           ),
-          _buildItemDivider(),
+          _buildItemDivider(context),
 
           // Row 3: Notifications
           _buildSettingsRow(
+            context: context,
             icon: Icons.notifications_rounded,
             iconColor: const Color(0xFFF59E0B), // notification orange
-            iconBgColor: const Color(0xFFFEF3C7), // light orange/amber
+            iconBgColor: isDarkMode ? const Color(0xFF451A03) : const Color(0xFFFEF3C7),
             title: 'Notifications',
             trailing: Switch.adaptive(
               value: _notificationsEnabled,
-              activeTrackColor: const Color(0xFF10B981), // active green in screenshot
+              activeTrackColor: const Color(0xFF10B981), // active green
               onChanged: (value) {
                 setState(() {
                   _notificationsEnabled = value;
@@ -444,10 +451,12 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildSupportCard(BuildContext context) {
+  Widget _buildSupportCard(BuildContext context, bool isDarkMode) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -456,15 +465,16 @@ class _ProfilePageState extends State<ProfilePage> {
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         children: [
           // Row 1: Privacy & Security
           _buildSettingsRow(
+            context: context,
             icon: Icons.lock_rounded,
             iconColor: const Color(0xFFFFA726), // amber/orange lock
-            iconBgColor: const Color(0xFFFEF3C7), // light yellow
+            iconBgColor: isDarkMode ? const Color(0xFF334155) : const Color(0xFFFEF3C7),
             title: 'Privacy & Security',
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -474,18 +484,19 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               );
             },
-            trailing: const Icon(
+            trailing: Icon(
               Icons.chevron_right_rounded,
-              color: AppColors.textLight,
+              color: onSurface.withValues(alpha: 0.4),
             ),
           ),
-          _buildItemDivider(),
+          _buildItemDivider(context),
 
           // Row 2: Help & Support
           _buildSettingsRow(
+            context: context,
             icon: Icons.help_outline_rounded,
             iconColor: const Color(0xFFEF4444), // red question
-            iconBgColor: const Color(0xFFFEF2F2), // light red
+            iconBgColor: isDarkMode ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
             title: 'Help & Support',
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -495,9 +506,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               );
             },
-            trailing: const Icon(
+            trailing: Icon(
               Icons.chevron_right_rounded,
-              color: AppColors.textLight,
+              color: onSurface.withValues(alpha: 0.4),
             ),
           ),
         ],
@@ -506,6 +517,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildSettingsRow({
+    required BuildContext context,
     required IconData icon,
     required Color iconColor,
     required Color iconBgColor,
@@ -542,10 +554,10 @@ class _ProfilePageState extends State<ProfilePage> {
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),
@@ -558,25 +570,32 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildItemDivider() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppSizes.l),
+  Widget _buildItemDivider(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSizes.l),
       child: Divider(
         height: 1,
-        color: Color(0xFFF1F5F9),
+        color: Theme.of(context).dividerColor,
       ),
     );
   }
 
-  Widget _buildSignOutButton(BuildContext context) {
+  Widget _buildSignOutButton(BuildContext context, bool isDarkMode) {
     return OutlinedButton(
       onPressed: () {
         context.read<AuthBloc>().add(SignOutRequested());
       },
       style: OutlinedButton.styleFrom(
         foregroundColor: const Color(0xFFEF4444), // Red text
-        backgroundColor: const Color(0xFFFEF2F2), // Soft red background
-        side: const BorderSide(color: Color(0xFFFEE2E2), width: 1.5), // Red-outline
+        backgroundColor: isDarkMode
+            ? const Color(0xFFEF4444).withValues(alpha: 0.12)
+            : const Color(0xFFFEF2F2), // Soft red background
+        side: BorderSide(
+          color: isDarkMode
+              ? const Color(0xFFEF4444).withValues(alpha: 0.25)
+              : const Color(0xFFFEE2E2),
+          width: 1.5,
+        ),
         minimumSize: const Size(double.infinity, 54),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),

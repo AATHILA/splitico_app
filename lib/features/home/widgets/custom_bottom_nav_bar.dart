@@ -17,10 +17,10 @@ class CustomBottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Theme.of(context).cardColor,
         border: Border(
           top: BorderSide(
-            color: AppColors.border.withValues(alpha: 0.5),
+            color: Theme.of(context).dividerColor,
             width: 1,
           ),
         ),
@@ -39,11 +39,11 @@ class CustomBottomNavBar extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(0, Icons.home_rounded, 'Home'),
-              _buildNavItem(1, Icons.people_rounded, 'Groups'),
-              _buildNavItem(2, Icons.scale_rounded, 'Balances'),
-              _buildNavItem(3, Icons.bar_chart_rounded, 'Analytics'),
-              _buildNavItem(4, Icons.person_rounded, 'Profile'),
+              _buildNavItem(context, 0, Icons.home_rounded, 'Home'),
+              _buildNavItem(context, 1, Icons.people_rounded, 'Groups'),
+              _buildNavItem(context, 2, Icons.scale_rounded, 'Balances'),
+              _buildNavItem(context, 3, Icons.bar_chart_rounded, 'Analytics'),
+              _buildNavItem(context, 4, Icons.person_rounded, 'Profile'),
             ],
           ),
         ),
@@ -51,9 +51,10 @@ class CustomBottomNavBar extends StatelessWidget {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label) {
+  Widget _buildNavItem(BuildContext context, int index, IconData icon, String label) {
     final isSelected = selectedIndex == index;
-    final color = isSelected ? AppColors.primary : AppColors.textSecondary;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final color = isSelected ? AppColors.primary :onSurface.withValues(alpha: 0.5);
 
     return InkWell(
       onTap: () => onTabSelected(index),

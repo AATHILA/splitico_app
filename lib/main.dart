@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:splitico/core/theme/app_theme.dart';
+import 'package:splitico/core/theme/theme_cubit.dart';
 import 'package:splitico/features/group/bloc/group_bloc.dart';
 import 'package:splitico/features/group/bloc/group_event.dart';
 import 'package:splitico/features/group/repository/group_repository.dart';
@@ -17,6 +19,7 @@ void main() async {
   runApp(
     MultiBlocProvider(
       providers: [
+        BlocProvider<ThemeCubit>(create: (_) => ThemeCubit()),
         BlocProvider<AuthBloc>(create: (_) => AuthBloc(AuthRepository())),
         BlocProvider<GroupBloc>(
           create: (_) => GroupBloc(GroupRepository())..add(LoadGroups()),
@@ -32,14 +35,20 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+     return BlocBuilder<ThemeCubit, ThemeMode>(
+      builder: (context, themeMode) {
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Splitico',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      themeMode: themeMode,
+      theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
       home: const LoginScreen(),
+      
     );
+      
   }
+     );
+}
 }
