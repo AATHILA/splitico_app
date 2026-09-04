@@ -105,7 +105,7 @@ class _HomePageState extends State<HomePage> {
     final topPadding = mediaQuery.padding.top;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: _buildBody(context, topPadding),
       bottomNavigationBar: CustomBottomNavBar(
         selectedIndex: _currentTabIndex,
@@ -316,14 +316,16 @@ class _HomePageState extends State<HomePage> {
                           children: [
                             // TODO: Fetch user's active groups dynamically from database/backend.
                             // Active Groups Section
-                            const Text(
+                            Text(
                               'Active Groups',
-                              style: AppTextStyles.sectionTitle,
+                              style: AppTextStyles.sectionTitle.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                             ),
                             const SizedBox(height: AppSizes.m),
                             if (groups.isEmpty) ...[
-                              const Padding(
-                                padding: EdgeInsets.symmetric(
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
                                   vertical: AppSizes.s,
                                 ),
                                 child: Text(
@@ -331,7 +333,9 @@ class _HomePageState extends State<HomePage> {
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.textLight,
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? const Color(0xFF94A3B8)
+                                        : AppColors.textLight,
                                   ),
                                 ),
                               ),
@@ -378,22 +382,26 @@ class _HomePageState extends State<HomePage> {
                             ],
                             const SizedBox(height: AppSizes.xxl + 8),
                             // Recent Expenses Section
-                            const Text(
+                            Text(
                               'Recent Expenses',
-                              style: AppTextStyles.sectionTitle,
+                              style: AppTextStyles.sectionTitle.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                             ),
                             const SizedBox(height: AppSizes.m),
                             // List of expenses
                             if (recentExpenses.isEmpty) ...[
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 24),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 24),
                                 child: Center(
                                   child: Text(
                                     'No recent expenses. 💸',
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
-                                      color: AppColors.textLight,
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? const Color(0xFF94A3B8)
+                                          : AppColors.textLight,
                                     ),
                                   ),
                                 ),

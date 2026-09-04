@@ -12,7 +12,7 @@ class SmartSettlePage extends StatelessWidget {
     final bottomPadding = mediaQuery.padding.bottom;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // soft off-white background
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         bottom: false,
         child: Padding(
@@ -30,16 +30,16 @@ class SmartSettlePage extends StatelessWidget {
               const SizedBox(height: AppSizes.l),
 
               // 2. Optimization Banner
-              _buildOptimizationBanner(),
+              _buildOptimizationBanner(context),
               const SizedBox(height: AppSizes.xxl),
 
               // 3. Section Title
-              const Text(
+              Text(
                 'Settlement Plan',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E293B),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: AppSizes.m),
@@ -56,55 +56,11 @@ class SmartSettlePage extends StatelessWidget {
   }
 
   Widget _buildAppBar(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Phone top indicators (9:41, Actions)
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              '9:41',
-              style: TextStyle(
-                color: Color(0xFF1E293B),
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-              ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1E293B),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Container(
-                  width: 14,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1E293B),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSizes.m),
         Row(
           children: [
             // Back button in soft rounded box
@@ -114,32 +70,34 @@ class SmartSettlePage extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(
+                    color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.02),
+                      color: Colors.black.withValues(alpha: isDarkMode ? 0.2 : 0.02),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.arrow_back_rounded,
-                  color: Color(0xFF1E293B),
+                  color: Theme.of(context).colorScheme.onSurface,
                   size: 20,
                 ),
               ),
             ),
             const SizedBox(width: AppSizes.m),
             // Title
-            const Text(
+            Text(
               'Smart Settle',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1E293B),
+                color: Theme.of(context).colorScheme.onSurface,
                 letterSpacing: -0.5,
               ),
             ),
@@ -149,13 +107,21 @@ class SmartSettlePage extends StatelessWidget {
     );
   }
 
-  Widget _buildOptimizationBanner() {
+  Widget _buildOptimizationBanner(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.l, vertical: AppSizes.l + 2),
       decoration: BoxDecoration(
-        color: const Color(0xFFEEF2FF), // light purple background
+        color: isDarkMode
+            ? const Color(0xFF312E81).withValues(alpha: 0.35)
+            : const Color(0xFFEEF2FF),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFD3E0FF)),
+        border: Border.all(
+          color: isDarkMode
+              ? const Color(0xFF4338CA).withValues(alpha: 0.4)
+              : const Color(0xFFD3E0FF),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,12 +139,12 @@ class SmartSettlePage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             '3 payments instead of 6 • Saves everyone time',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF64748B),
+              color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
             ),
           ),
         ],
@@ -193,6 +159,7 @@ class SmartSettlePage extends StatelessWidget {
       children: [
         // Card 1: A pays R Rahul (with payment method chips)
         _buildPlanCard(
+          context: context,
           fromInitial: 'A',
           fromColor: const Color(0xFF7C3AED), // purple
           toInitial: 'R',
@@ -204,6 +171,7 @@ class SmartSettlePage extends StatelessWidget {
 
         // Card 2: R pays K Kiran
         _buildPlanCard(
+          context: context,
           fromInitial: 'R',
           fromColor: const Color(0xFF4C49ED), // blue/indigo
           toInitial: 'K',
@@ -215,6 +183,7 @@ class SmartSettlePage extends StatelessWidget {
 
         // Card 3: S pays A Athila
         _buildPlanCard(
+          context: context,
           fromInitial: 'S',
           fromColor: const Color(0xFFEC4899), // pink
           toInitial: 'A',
@@ -261,6 +230,7 @@ class SmartSettlePage extends StatelessWidget {
   }
 
   Widget _buildPlanCard({
+    required BuildContext context,
     required String fromInitial,
     required Color fromColor,
     required String toInitial,
@@ -269,16 +239,20 @@ class SmartSettlePage extends StatelessWidget {
     required String amount,
     required bool showPaymentMethods,
   }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: AppSizes.m),
       padding: const EdgeInsets.all(AppSizes.l),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        border: Border.all(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: isDarkMode ? 0.2 : 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -305,12 +279,12 @@ class SmartSettlePage extends StatelessWidget {
               const SizedBox(width: AppSizes.s + 2),
 
               // "pays" Label
-              const Text(
+              Text(
                 'pays',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF94A3B8),
+                  color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                 ),
               ),
               const SizedBox(width: AppSizes.s + 2),
@@ -333,10 +307,10 @@ class SmartSettlePage extends StatelessWidget {
               // Receiver Name
               Text(
                 toName,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const Spacer(),
@@ -359,7 +333,9 @@ class SmartSettlePage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFECFDF5), // light green
+                color: isDarkMode
+                    ? const Color(0xFF064E3B).withValues(alpha: 0.4)
+                    : const Color(0xFFECFDF5),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Row(
@@ -389,6 +365,8 @@ class _PaymentMethodChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -399,10 +377,10 @@ class _PaymentMethodChip extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF065F46), // dark green text
+            color: isDarkMode ? const Color(0xFF34D399) : const Color(0xFF065F46),
           ),
         ),
       ],

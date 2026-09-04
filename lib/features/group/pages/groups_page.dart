@@ -28,6 +28,8 @@ class _GroupsPageState extends State<GroupsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return BlocBuilder<GroupBloc, GroupState>(
       builder: (context, state) {
         List<GroupModel> groupsList = [];
@@ -42,7 +44,7 @@ class _GroupsPageState extends State<GroupsPage> {
         }).toList();
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF8FAFC), // soft off-white background
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSizes.xxl),
@@ -54,12 +56,12 @@ class _GroupsPageState extends State<GroupsPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'My Groups',
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
+                          color: Theme.of(context).colorScheme.onSurface,
                           letterSpacing: -0.5,
                         ),
                       ),
@@ -100,11 +102,11 @@ class _GroupsPageState extends State<GroupsPage> {
                   // Search Bar
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(AppSizes.radiusXL),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
+                          color: Colors.black.withValues(alpha: isDarkMode ? 0.2 : 0.03),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -112,6 +114,11 @@ class _GroupsPageState extends State<GroupsPage> {
                     ),
                     child: TextField(
                       controller: _searchController,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                       onChanged: (value) {
                         setState(() {
                           _searchQuery = value;
@@ -119,8 +126,8 @@ class _GroupsPageState extends State<GroupsPage> {
                       },
                       decoration: InputDecoration(
                         hintText: 'Search groups...',
-                        hintStyle: const TextStyle(
-                          color: Color(0xFF94A3B8),
+                        hintStyle: TextStyle(
+                          color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
                         ),
@@ -130,11 +137,15 @@ class _GroupsPageState extends State<GroupsPage> {
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppSizes.radiusXL),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          borderSide: BorderSide(
+                            color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                          ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppSizes.radiusXL),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          borderSide: BorderSide(
+                            color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppSizes.radiusXL),
@@ -175,6 +186,7 @@ class _GroupsPageState extends State<GroupsPage> {
 
   Widget _buildCategoryChips() {
     final categories = ['All', 'Travel', 'Home', 'Friends', 'Family'];
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return SizedBox(
       height: 38,
@@ -196,9 +208,11 @@ class _GroupsPageState extends State<GroupsPage> {
                 });
               },
               selectedColor: AppColors.primary,
-              backgroundColor: const Color(0xFFF1F5F9),
+              backgroundColor: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
               labelStyle: TextStyle(
-                color: isSelected ? Colors.white : const Color(0xFF64748B),
+                color: isSelected
+                    ? Colors.white
+                    : (isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
               ),
@@ -216,6 +230,7 @@ class _GroupsPageState extends State<GroupsPage> {
   }
 
   Widget _buildGroupCard(GroupModel group) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final emojiMap = {
       'Travel': '🌴',
       'Home': '🏠',
@@ -223,14 +238,14 @@ class _GroupsPageState extends State<GroupsPage> {
       'Family': '👪',
     };
     final emojiBgMap = {
-      'Travel': const Color(0xFFEEF2FF),
-      'Home': const Color(0xFFECFDF5),
-      'Friends': const Color(0xFFEFF6FF),
-      'Family': const Color(0xFFFFF1F2),
+      'Travel': isDarkMode ? const Color(0xFF312E81).withValues(alpha: 0.5) : const Color(0xFFEEF2FF),
+      'Home': isDarkMode ? const Color(0xFF064E3B).withValues(alpha: 0.5) : const Color(0xFFECFDF5),
+      'Friends': isDarkMode ? const Color(0xFF1E3A8A).withValues(alpha: 0.5) : const Color(0xFFEFF6FF),
+      'Family': isDarkMode ? const Color(0xFF881337).withValues(alpha: 0.5) : const Color(0xFFFFF1F2),
     };
 
     final emoji = emojiMap[group.type] ?? '👥';
-    final emojiBg = emojiBgMap[group.type] ?? const Color(0xFFEFF6FF);
+    final emojiBg = emojiBgMap[group.type] ?? (isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF));
 
     // Resolve balance using mock balances or calculate
     final String balanceLabel;
@@ -249,7 +264,7 @@ class _GroupsPageState extends State<GroupsPage> {
       balance = 0.0;
     }
 
-    Color balanceColor = const Color(0xFF64748B); // default grey
+    Color balanceColor = isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B); // default grey
     String balanceText = '₹0';
 
     if (balance < 0) {
@@ -273,16 +288,18 @@ class _GroupsPageState extends State<GroupsPage> {
         margin: const EdgeInsets.only(bottom: AppSizes.m),
         padding: const EdgeInsets.all(AppSizes.l),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(AppSizes.radiusXL + 4),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: Colors.black.withValues(alpha: isDarkMode ? 0.2 : 0.03),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
-          border: Border.all(color: const Color(0xFFF1F5F9)),
+          border: Border.all(
+            color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+          ),
         ),
         child: Row(
           children: [
@@ -306,19 +323,19 @@ class _GroupsPageState extends State<GroupsPage> {
                 children: [
                   Text(
                     group.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E293B),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${group.members.length} members • ${group.expenses.length} expenses',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF64748B),
+                      color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                     ),
                   ),
                 ],
@@ -340,10 +357,10 @@ class _GroupsPageState extends State<GroupsPage> {
                 const SizedBox(height: 4),
                 Text(
                   balanceLabel,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF94A3B8),
+                    color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                   ),
                 ),
               ],
@@ -355,27 +372,29 @@ class _GroupsPageState extends State<GroupsPage> {
   }
 
   Widget _buildEmptyState() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Text('🔍', style: TextStyle(fontSize: 48)),
           const SizedBox(height: AppSizes.m),
-          const Text(
+          Text(
             'No groups found',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF475569),
+              color: isDarkMode ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
             ),
           ),
           const SizedBox(height: AppSizes.xs),
-          const Text(
+          Text(
             'Try adjusting your search query or filters',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF94A3B8),
+              color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
             ),
           ),
         ],

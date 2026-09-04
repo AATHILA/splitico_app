@@ -192,6 +192,8 @@ class _AddExpensePageState extends State<AddExpensePage> {
   }
 
   void _deleteExpense() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (widget.expenseToEdit != null) {
       showDialog(
         context: context,
@@ -202,11 +204,11 @@ class _AddExpensePageState extends State<AddExpensePage> {
             child: Container(
               padding: const EdgeInsets.all(AppSizes.xl),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
+                    color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
@@ -218,8 +220,10 @@ class _AddExpensePageState extends State<AddExpensePage> {
                   Container(
                     width: 56,
                     height: 56,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFEF2F2),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF7F1D1D).withValues(alpha: 0.4)
+                          : const Color(0xFFFEF2F2),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -229,12 +233,12 @@ class _AddExpensePageState extends State<AddExpensePage> {
                     ),
                   ),
                   const SizedBox(height: AppSizes.l),
-                  const Text(
+                  Text(
                     'Delete Expense',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E293B),
+                      color: Theme.of(context).colorScheme.onSurface,
                       letterSpacing: -0.5,
                     ),
                   ),
@@ -242,10 +246,10 @@ class _AddExpensePageState extends State<AddExpensePage> {
                   Text(
                     'Are you sure you want to delete "${widget.expenseToEdit!.title}"? This action cannot be undone.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF64748B),
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                       height: 1.5,
                     ),
                   ),
@@ -256,8 +260,10 @@ class _AddExpensePageState extends State<AddExpensePage> {
                         child: OutlinedButton(
                           onPressed: () => Navigator.of(context).pop(),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF64748B),
-                            side: const BorderSide(color: Color(0xFFE2E8F0)),
+                            foregroundColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            side: BorderSide(
+                              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
@@ -329,7 +335,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
     final topPadding = mediaQuery.padding.top;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         top: false,
         child: Column(
@@ -425,6 +431,8 @@ class _AddExpensePageState extends State<AddExpensePage> {
   }
 
   Widget _buildTopAppBar(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -438,13 +446,15 @@ class _AddExpensePageState extends State<AddExpensePage> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: Theme.of(context).cardColor,
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(
+                    color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.close_rounded,
-                  color: Color(0xFF64748B),
+                  color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   size: 20,
                 ),
               ),
@@ -453,10 +463,10 @@ class _AddExpensePageState extends State<AddExpensePage> {
             // Title
             Text(
               widget.isEditing ? 'Edit Expense' : 'Add Expense',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1E293B),
+                color: Theme.of(context).colorScheme.onSurface,
                 letterSpacing: -0.5,
               ),
             ),
@@ -469,9 +479,13 @@ class _AddExpensePageState extends State<AddExpensePage> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFEF2F2),
+                    color: isDarkMode
+                        ? const Color(0xFF7F1D1D).withValues(alpha: 0.4)
+                        : const Color(0xFFFEF2F2),
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFFCA5A5)),
+                    border: Border.all(
+                      color: isDarkMode ? const Color(0xFF991B1B) : const Color(0xFFFCA5A5),
+                    ),
                   ),
                   child: const Icon(
                     Icons.delete_outline_rounded,
@@ -489,23 +503,30 @@ class _AddExpensePageState extends State<AddExpensePage> {
   }
 
   Widget _buildTitleInputField() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(AppSizes.radiusL),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
       ),
       child: TextField(
         controller: _titleController,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 15,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF1E293B),
+          color: Theme.of(context).colorScheme.onSurface,
         ),
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           hintText: 'Enter Expense Title',
+          hintStyle: TextStyle(
+            color: isDarkMode ? const Color(0xFF64748B) : AppColors.textLight,
+          ),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(
+          contentPadding: const EdgeInsets.symmetric(
             horizontal: AppSizes.l,
             vertical: 14,
           ),
@@ -532,10 +553,10 @@ class _AddExpensePageState extends State<AddExpensePage> {
           child: TextField(
             controller: _amountController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 48,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1E293B),
+              color: Theme.of(context).colorScheme.onSurface,
               letterSpacing: -0.5,
             ),
             decoration: const InputDecoration(
@@ -554,23 +575,43 @@ class _AddExpensePageState extends State<AddExpensePage> {
   }
 
   Widget _buildSectionHeader(String title) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w800,
-        color: Color(0xFF64748B),
+        color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
         letterSpacing: 0.8,
       ),
     );
   }
 
   Widget _buildCategoryRow() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     final categories = [
-      {'label': 'Food', 'emoji': '🍽️', 'color': const Color(0xFFEEF2FF)},
-      {'label': 'Transport', 'emoji': '🚗', 'color': const Color(0xFFECFDF5)},
-      {'label': 'Stay', 'emoji': '🏨', 'color': const Color(0xFFFEF3C7)},
-      {'label': 'Activity', 'emoji': '🎯', 'color': const Color(0xFFFFF1F2)},
+      {
+        'label': 'Food',
+        'emoji': '🍽️',
+        'color': isDarkMode ? const Color(0xFF312E81).withValues(alpha: 0.4) : const Color(0xFFEEF2FF),
+      },
+      {
+        'label': 'Transport',
+        'emoji': '🚗',
+        'color': isDarkMode ? const Color(0xFF064E3B).withValues(alpha: 0.4) : const Color(0xFFECFDF5),
+      },
+      {
+        'label': 'Stay',
+        'emoji': '🏨',
+        'color': isDarkMode ? const Color(0xFF78350F).withValues(alpha: 0.4) : const Color(0xFFFEF3C7),
+      },
+      {
+        'label': 'Activity',
+        'emoji': '🎯',
+        'color': isDarkMode ? const Color(0xFF881337).withValues(alpha: 0.4) : const Color(0xFFFFF1F2),
+      },
     ];
 
     return Row(
@@ -594,13 +635,15 @@ class _AddExpensePageState extends State<AddExpensePage> {
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   height: 80,
                   decoration: BoxDecoration(
-                    color: isSelected ? color : const Color(0xFFF8FAFC),
+                    color: isSelected
+                        ? color
+                        : (isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC)),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color:
                           isSelected
                               ? AppColors.primary
-                              : const Color(0xFFE2E8F0),
+                              : (isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                       width: isSelected ? 1.5 : 1,
                     ),
                   ),
@@ -617,7 +660,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                           color:
                               isSelected
                                   ? AppColors.primary
-                                  : const Color(0xFF64748B),
+                                  : (isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                         ),
                       ),
                     ],
@@ -630,6 +673,8 @@ class _AddExpensePageState extends State<AddExpensePage> {
   }
 
   Widget _buildPaidByDropdown() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: _showPaidByPicker,
       child: Container(
@@ -638,9 +683,11 @@ class _AddExpensePageState extends State<AddExpensePage> {
           vertical: 12,
         ),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
+          color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(
+            color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+          ),
         ),
         child: Row(
           children: [
@@ -659,16 +706,16 @@ class _AddExpensePageState extends State<AddExpensePage> {
             const SizedBox(width: AppSizes.s + 2),
             Text(
               _paidByMember['name'] as String,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1E293B),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const Spacer(),
-            const Icon(
+            Icon(
               Icons.arrow_drop_down_rounded,
-              color: Color(0xFF64748B),
+              color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
               size: 24,
             ),
           ],
@@ -680,6 +727,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
   void _showPaidByPicker() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -690,12 +738,12 @@ class _AddExpensePageState extends State<AddExpensePage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'Paid By',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: AppSizes.l),
@@ -714,7 +762,10 @@ class _AddExpensePageState extends State<AddExpensePage> {
                   ),
                   title: Text(
                     member['name'] as String,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                   ),
                   onTap: () {
                     setState(() {
@@ -732,13 +783,16 @@ class _AddExpensePageState extends State<AddExpensePage> {
   }
 
   Widget _buildSplitTypeSegmentedControl() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final types = ['Equal', '%', 'Custom'];
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
       ),
       padding: const EdgeInsets.all(4),
       child: Row(
@@ -768,7 +822,9 @@ class _AddExpensePageState extends State<AddExpensePage> {
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color:
-                            isSelected ? Colors.white : const Color(0xFF64748B),
+                            isSelected
+                                ? Colors.white
+                                : (isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                       ),
                     ),
                   ),
@@ -780,6 +836,8 @@ class _AddExpensePageState extends State<AddExpensePage> {
   }
 
   Widget _buildSplitBetweenList() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       children:
           _members.map((member) {
@@ -791,13 +849,13 @@ class _AddExpensePageState extends State<AddExpensePage> {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color:
                       isSelected
-                          ? const Color(0xFFEEF2FF)
-                          : const Color(0xFFF1F5F9),
+                          ? (isDarkMode ? AppColors.primary.withValues(alpha: 0.5) : const Color(0xFFEEF2FF))
+                          : (isDarkMode ? const Color(0xFF334155) : const Color(0xFFF1F5F9)),
                 ),
               ),
               child: Row(
@@ -817,13 +875,13 @@ class _AddExpensePageState extends State<AddExpensePage> {
                         color:
                             isSelected
                                 ? AppColors.primary
-                                : const Color(0xFFF1F5F9),
+                                : (isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
                           color:
                               isSelected
                                   ? AppColors.primary
-                                  : const Color(0xFFCBD5E1),
+                                  : (isDarkMode ? const Color(0xFF475569) : const Color(0xFFCBD5E1)),
                           width: 1.5,
                         ),
                       ),
@@ -846,7 +904,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                     backgroundColor:
                         isSelected
                             ? member['color'] as Color
-                            : const Color(0xFF94A3B8),
+                            : (isDarkMode ? const Color(0xFF475569) : const Color(0xFF94A3B8)),
                     child: Text(
                       member['initial'] as String,
                       style: const TextStyle(
@@ -866,8 +924,8 @@ class _AddExpensePageState extends State<AddExpensePage> {
                       fontWeight: FontWeight.w700,
                       color:
                           isSelected
-                              ? const Color(0xFF1E293B)
-                              : const Color(0xFF94A3B8),
+                              ? Theme.of(context).colorScheme.onSurface
+                              : (isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
                     ),
                   ),
                   const Spacer(),
@@ -881,7 +939,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                       color:
                           isSelected
                               ? AppColors.primary
-                              : const Color(0xFF94A3B8),
+                              : (isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
                     ),
                   ),
                 ],

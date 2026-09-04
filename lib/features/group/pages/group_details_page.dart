@@ -44,18 +44,14 @@ class GroupDetailsPage extends StatelessWidget {
             });
           },
           child: Scaffold(
-            backgroundColor: const Color(
-              0xFFF8FAFC,
-            ), // soft off-white background
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             body: Stack(
               children: [
                 // Main scrollable content
                 Positioned.fill(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.only(
-                      bottom:
-                          100 +
-                          bottomPadding, // space for floating bottom action buttons
+                      bottom: 100 + bottomPadding, // space for floating bottom action buttons
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -65,12 +61,12 @@ class GroupDetailsPage extends StatelessWidget {
 
                         // 2. Member Chips Section
                         const SizedBox(height: AppSizes.xl),
-                        _buildMembersRow(currentGroup),
+                        _buildMembersRow(context, currentGroup),
 
                         // 3. Expenses Section Header
                         const SizedBox(height: AppSizes.xxl),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: AppSizes.xxl,
                           ),
                           child: Text(
@@ -78,7 +74,7 @@ class GroupDetailsPage extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF1E293B),
+                              color: Theme.of(context).colorScheme.onSurface,
                               letterSpacing: -0.3,
                             ),
                           ),
@@ -86,7 +82,7 @@ class GroupDetailsPage extends StatelessWidget {
                         const SizedBox(height: AppSizes.l),
 
                         // 4. Expenses Timeline List
-                        _buildExpensesTimeline(currentGroup),
+                        _buildExpensesTimeline(context, currentGroup),
                       ],
                     ),
                   ),
@@ -185,8 +181,6 @@ class GroupDetailsPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // const SizedBox(height: AppSizes.m),
-
           // Navigation Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -223,7 +217,7 @@ class GroupDetailsPage extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(
-                    Icons.upload_rounded, // Matches the reference design icon
+                    Icons.upload_rounded,
                     color: Colors.white,
                     size: 24,
                   ),
@@ -272,6 +266,7 @@ class GroupDetailsPage extends StatelessWidget {
                   const SizedBox(width: AppSizes.s),
                   GestureDetector(
                     onTap: () {
+                      final isDark = Theme.of(context).brightness == Brightness.dark;
                       showDialog(
                         context: context,
                         builder: (BuildContext context) {
@@ -281,11 +276,11 @@ class GroupDetailsPage extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.all(AppSizes.xl),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: Theme.of(context).cardColor,
                                 borderRadius: BorderRadius.circular(24),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.1),
+                                    color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
                                     blurRadius: 20,
                                     offset: const Offset(0, 8),
                                   ),
@@ -297,8 +292,10 @@ class GroupDetailsPage extends StatelessWidget {
                                   Container(
                                     width: 56,
                                     height: 56,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFFEF2F2),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? const Color(0xFF7F1D1D).withValues(alpha: 0.4)
+                                          : const Color(0xFFFEF2F2),
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(
@@ -308,12 +305,12 @@ class GroupDetailsPage extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(height: AppSizes.l),
-                                  const Text(
+                                  Text(
                                     'Delete Group',
                                     style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFF1E293B),
+                                      color: Theme.of(context).colorScheme.onSurface,
                                       letterSpacing: -0.5,
                                     ),
                                   ),
@@ -321,10 +318,10 @@ class GroupDetailsPage extends StatelessWidget {
                                   Text(
                                     'Are you sure you want to delete "${currentGroup.name}"? This action cannot be undone.',
                                     textAlign: TextAlign.center,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,
-                                      color: Color(0xFF64748B),
+                                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                                       height: 1.5,
                                     ),
                                   ),
@@ -336,11 +333,9 @@ class GroupDetailsPage extends StatelessWidget {
                                           onPressed:
                                               () => Navigator.of(context).pop(),
                                           style: OutlinedButton.styleFrom(
-                                            foregroundColor: const Color(
-                                              0xFF64748B,
-                                            ),
-                                            side: const BorderSide(
-                                              color: Color(0xFFE2E8F0),
+                                            foregroundColor: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                            side: BorderSide(
+                                              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                                             ),
                                             shape: RoundedRectangleBorder(
                                               borderRadius:
@@ -508,8 +503,9 @@ class GroupDetailsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildMembersRow(GroupModel currentGroup) {
+  Widget _buildMembersRow(BuildContext context, GroupModel currentGroup) {
     final members = currentGroup.members;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -524,9 +520,11 @@ class GroupDetailsPage extends StatelessWidget {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(
+                    color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -550,10 +548,10 @@ class GroupDetailsPage extends StatelessWidget {
                     const SizedBox(width: AppSizes.s),
                     Text(
                       member['name'] as String,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF475569),
+                        color: isDarkMode ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
                       ),
                     ),
                   ],
@@ -564,18 +562,19 @@ class GroupDetailsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildExpensesTimeline(GroupModel currentGroup) {
+  Widget _buildExpensesTimeline(BuildContext context, GroupModel currentGroup) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final expenses = List<ExpenseModel>.from(currentGroup.expenses)
       ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
 
     if (expenses.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 40),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40),
         child: Center(
           child: Text(
             'No expenses added yet! 💸',
             style: TextStyle(
-              color: Color(0xFF64748B),
+              color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
               fontSize: 15,
               fontWeight: FontWeight.w500,
             ),
@@ -601,7 +600,11 @@ class GroupDetailsPage extends StatelessWidget {
               // Timeline vertical line & dot
               CustomPaint(
                 size: const Size(24, double.infinity),
-                painter: _TimelinePainter(isFirst: isFirst, isLast: isLast),
+                painter: _TimelinePainter(
+                  isFirst: isFirst,
+                  isLast: isLast,
+                  isDarkMode: isDarkMode,
+                ),
               ),
               const SizedBox(width: AppSizes.s),
 
@@ -625,9 +628,18 @@ class GroupDetailsPage extends StatelessWidget {
                     margin: const EdgeInsets.only(bottom: AppSizes.l),
                     padding: const EdgeInsets.all(AppSizes.l),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: const Color(0xFFF1F5F9)),
+                      border: Border.all(
+                        color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDarkMode ? 0.2 : 0.02),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -646,20 +658,19 @@ class GroupDetailsPage extends StatelessWidget {
                             children: [
                               Text(
                                 expense.title,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1E293B),
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 '${expense.paidBy} paid • Split ${expense.splitType}',
-
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
-                                  color: Color(0xFF64748B),
+                                  color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                                 ),
                               ),
                             ],
@@ -682,10 +693,10 @@ class GroupDetailsPage extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               _formatDateTime(expense.dateTime),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
-                                color: Color(0xFF94A3B8),
+                                color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                               ),
                             ),
                           ],
@@ -707,6 +718,9 @@ class GroupDetailsPage extends StatelessWidget {
     double bottomPadding,
     GroupModel currentGroup,
   ) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+
     return Container(
       padding: EdgeInsets.fromLTRB(
         AppSizes.xxl,
@@ -715,16 +729,14 @@ class GroupDetailsPage extends StatelessWidget {
         bottomPadding > 0 ? bottomPadding : 16,
       ),
       decoration: BoxDecoration(
-        color: const Color(
-          0xFFF8FAFC,
-        ).withValues(alpha: 0.9), // soft background blending
+        color: bgColor.withValues(alpha: 0.9),
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            const Color(0xFFF8FAFC).withValues(alpha: 0.0),
-            const Color(0xFFF8FAFC).withValues(alpha: 0.95),
-            const Color(0xFFF8FAFC),
+            bgColor.withValues(alpha: 0.0),
+            bgColor.withValues(alpha: 0.95),
+            bgColor,
           ],
           stops: const [0.0, 0.4, 1.0],
         ),
@@ -775,8 +787,12 @@ class GroupDetailsPage extends StatelessWidget {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDCFCE7), // light green
-                foregroundColor: const Color(0xFF065F46), // dark green text
+                backgroundColor: isDarkMode
+                    ? const Color(0xFF064E3B).withValues(alpha: 0.6)
+                    : const Color(0xFFDCFCE7),
+                foregroundColor: isDarkMode
+                    ? const Color(0xFF34D399)
+                    : const Color(0xFF065F46),
                 minimumSize: const Size(double.infinity, 54),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
@@ -828,20 +844,23 @@ class GroupDetailsPage extends StatelessWidget {
 class _TimelinePainter extends CustomPainter {
   final bool isFirst;
   final bool isLast;
+  final bool isDarkMode;
 
-  _TimelinePainter({required this.isFirst, required this.isLast});
+  _TimelinePainter({
+    required this.isFirst,
+    required this.isLast,
+    this.isDarkMode = false,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint =
         Paint()
-          ..color = const Color(0xFFE2E8F0)
+          ..color = isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0)
           ..strokeWidth = 2.0
           ..style = PaintingStyle.stroke;
 
     final centerX = size.width / 2;
-    // Align dot center to roughly match the emoji/first line center inside the card
-    // In our card design, the padding is 16 and text is size 20, so center aligns to roughly 26px down
     const dotCenterY = 26.0;
 
     final topPoint = Offset(centerX, 0);
@@ -867,5 +886,8 @@ class _TimelinePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _TimelinePainter oldDelegate) =>
+      oldDelegate.isFirst != isFirst ||
+      oldDelegate.isLast != isLast ||
+      oldDelegate.isDarkMode != isDarkMode;
 }

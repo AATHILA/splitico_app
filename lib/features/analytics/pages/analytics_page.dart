@@ -68,8 +68,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         bottom: false,
         child: BlocBuilder<AuthBloc, AuthState>(
@@ -97,7 +99,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       child: Text(
                         'Unable to load analytics: ${groupState.message}',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
+                        style: TextStyle(
+                          color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   );
@@ -158,28 +163,29 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   Widget _buildHeader() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
+          children: [
             Text(
               'Analytics',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1E293B),
+                color: Theme.of(context).colorScheme.onSurface,
                 letterSpacing: -0.5,
               ),
             ),
-            SizedBox(height: 2),
+            const SizedBox(height: 2),
             Text(
               'Simple overview of your shared spending',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF64748B),
+                color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
               ),
             ),
           ],
@@ -188,7 +194,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: const Color(0xFFEEF2FF),
+            color: isDarkMode
+                ? AppColors.primary.withValues(alpha: 0.15)
+                : const Color(0xFFEEF2FF),
             borderRadius: BorderRadius.circular(14),
           ),
           child: const Icon(
@@ -202,10 +210,14 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   Widget _buildPeriodToggle() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFFE2E8F0).withValues(alpha: 0.7),
+        color: isDarkMode
+            ? const Color(0xFF1E293B)
+            : const Color(0xFFE2E8F0).withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -219,6 +231,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
   Widget _buildToggleItem(String title, AnalyticsPeriod period) {
     final isSelected = _selectedPeriod == period;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Expanded(
       child: GestureDetector(
         onTap: () {
@@ -229,12 +243,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 9),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
+            color: isSelected ? Theme.of(context).cardColor : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
+                      color: Colors.black.withValues(alpha: isDarkMode ? 0.2 : 0.05),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
@@ -247,7 +261,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-              color: isSelected ? AppColors.primary : const Color(0xFF64748B),
+              color: isSelected
+                  ? AppColors.primary
+                  : (isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
             ),
           ),
         ),
@@ -256,6 +272,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   Widget _buildSummaryOverview(List<ExpenseModel> expenses, String displayName) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+    final mutedText = isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
     double totalGroupVolume = 0.0;
     double youPaid = 0.0;
     double yourShare = 0.0;
@@ -291,12 +311,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSizes.xl),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: isDarkMode ? 0.2 : 0.04),
             blurRadius: 14,
             offset: const Offset(0, 4),
           ),
@@ -312,40 +332,40 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'YOUR SHARE',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF64748B),
+                        color: mutedText,
                         letterSpacing: 0.8,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '₹${yourShare.toStringAsFixed(yourShare % 1 == 0 ? 0 : 2)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF1E293B),
+                        color: Theme.of(context).colorScheme.onSurface,
                         letterSpacing: -0.5,
                       ),
                     ),
                   ],
                 ),
               ),
-              Container(height: 40, width: 1, color: const Color(0xFFE2E8F0)),
+              Container(height: 40, width: 1, color: borderColor),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'TOTAL GROUP BILLS',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF64748B),
+                        color: mutedText,
                         letterSpacing: 0.8,
                       ),
                     ),
@@ -365,7 +385,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Divider(height: 1, color: borderColor),
           const SizedBox(height: 14),
 
           // Bottom status summary badge
@@ -373,8 +393,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: isNetPositive
-                  ? const Color(0xFFECFDF5)
-                  : const Color(0xFFFEF2F2),
+                  ? (isDarkMode ? const Color(0xFF064E3B).withValues(alpha: 0.4) : const Color(0xFFECFDF5))
+                  : (isDarkMode ? const Color(0xFF7F1D1D).withValues(alpha: 0.4) : const Color(0xFFFEF2F2)),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -382,7 +402,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 Icon(
                   isNetPositive ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
                   size: 18,
-                  color: isNetPositive ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                  color: isNetPositive
+                      ? (isDarkMode ? const Color(0xFF34D399) : const Color(0xFF059669))
+                      : (isDarkMode ? const Color(0xFFF87171) : const Color(0xFFDC2626)),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -393,7 +415,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: isNetPositive ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                      color: isNetPositive
+                          ? (isDarkMode ? const Color(0xFF34D399) : const Color(0xFF059669))
+                          : (isDarkMode ? const Color(0xFFF87171) : const Color(0xFFDC2626)),
                     ),
                   ),
                 ),
@@ -406,6 +430,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   Widget _buildCategorySection(List<ExpenseModel> expenses) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
     final Map<String, double> categoryTotals = {};
     double totalSpend = 0.0;
 
@@ -455,12 +482,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Where your money went',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1E293B),
+                color: Theme.of(context).colorScheme.onSurface,
                 letterSpacing: -0.3,
               ),
             ),
@@ -487,10 +514,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 child: Text.rich(
                   TextSpan(
                     text: 'Largest spend: ',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF475569),
+                      color: isDarkMode ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
                     ),
                     children: [
                       TextSpan(
@@ -512,12 +539,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(AppSizes.l),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: borderColor),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
+                color: Colors.black.withValues(alpha: isDarkMode ? 0.2 : 0.02),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
@@ -533,10 +560,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   Widget _buildChartTypeToggle() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -568,6 +597,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     required String tooltip,
   }) {
     final isSelected = _chartType == type;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -577,12 +608,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected ? Theme.of(context).cardColor : Colors.transparent,
           borderRadius: BorderRadius.circular(7),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
+                    color: Colors.black.withValues(alpha: isDarkMode ? 0.2 : 0.06),
                     blurRadius: 4,
                     offset: const Offset(0, 1),
                   ),
@@ -592,7 +623,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         child: Icon(
           icon,
           size: 17,
-          color: isSelected ? AppColors.primary : const Color(0xFF64748B),
+          color: isSelected
+              ? AppColors.primary
+              : (isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
         ),
       ),
     );
@@ -614,6 +647,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   Widget _buildDonutChartView(List<_CategoryChartData> chartItems, double totalSpend) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final mutedText = isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final borderColor = isDarkMode ? const Color(0xFF334155) : const Color(0xFFF1F5F9);
+
     _CategoryChartData? selectedItem;
     if (_selectedCategory != null) {
       try {
@@ -641,6 +678,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     painter: _DonutChartPainter(
                       items: chartItems,
                       selectedCategory: _selectedCategory,
+                      isDarkMode: isDarkMode,
                     ),
                   ),
                   // Center Info Hole
@@ -654,11 +692,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       width: 112,
                       height: 112,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).cardColor,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: (selectedItem?.color ?? AppColors.primary).withValues(alpha: 0.08),
+                            color: (selectedItem?.color ?? AppColors.primary).withValues(alpha: isDarkMode ? 0.2 : 0.08),
                             blurRadius: 10,
                             spreadRadius: 2,
                           ),
@@ -674,18 +712,18 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                               selectedItem.category,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF64748B),
+                                color: mutedText,
                               ),
                             ),
                             Text(
                               '₹${selectedItem.amount.toStringAsFixed(selectedItem.amount % 1 == 0 ? 0 : 2)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w900,
-                                color: Color(0xFF1E293B),
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                             Text(
@@ -697,32 +735,32 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                               ),
                             ),
                           ] else ...[
-                            const Text(
+                            Text(
                               'TOTAL SPEND',
                               style: TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFF94A3B8),
+                                color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                                 letterSpacing: 0.5,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               '₹${totalSpend.toStringAsFixed(totalSpend % 1 == 0 ? 0 : 2)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w900,
-                                color: Color(0xFF1E293B),
+                                color: Theme.of(context).colorScheme.onSurface,
                                 letterSpacing: -0.3,
                               ),
                             ),
                             const SizedBox(height: 1),
                             Text(
                               '${chartItems.length} categories',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF64748B),
+                                color: mutedText,
                               ),
                             ),
                           ],
@@ -736,16 +774,16 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           ),
         ),
         const SizedBox(height: 18),
-        const Text(
+        Text(
           'Tap any slice or category below to inspect details',
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w500,
-            color: Color(0xFF94A3B8),
+            color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
           ),
         ),
         const SizedBox(height: 14),
-        const Divider(height: 1, color: Color(0xFFF1F5F9)),
+        Divider(height: 1, color: borderColor),
         const SizedBox(height: 12),
         // Interactive Category Legend List
         ...chartItems.map((item) {
@@ -786,7 +824,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                        color: const Color(0xFF1E293B),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -811,7 +849,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-                      color: const Color(0xFF1E293B),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ],
@@ -869,6 +907,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   Widget _buildBarChartView(List<_CategoryChartData> chartItems, double totalSpend) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final double maxAmount = chartItems.map((e) => e.amount).fold(0.0, math.max);
 
     _CategoryChartData? selectedItem;
@@ -901,7 +940,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: isSelected ? item.color : const Color(0xFFF1F5F9),
+                  color: isSelected
+                      ? item.color
+                      : (isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -909,7 +950,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    color: isSelected ? Colors.white : const Color(0xFF64748B),
+                    color: isSelected
+                        ? Colors.white
+                        : (isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                   ),
                 ),
               ),
@@ -920,7 +963,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 height: 85,
                 alignment: Alignment.bottomCenter,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: isDarkMode ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: AnimatedContainer(
@@ -941,7 +984,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       bottom: Radius.circular(4),
                     ),
                     border: isSelected
-                        ? Border.all(color: Colors.white, width: 2)
+                        ? Border.all(color: isDarkMode ? const Color(0xFF334155) : Colors.white, width: 2)
                         : null,
                     boxShadow: isSelected
                         ? [
@@ -979,7 +1022,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                    color: isSelected ? item.color : const Color(0xFF64748B),
+                    color: isSelected
+                        ? item.color
+                        : (isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                   ),
                 ),
               ),
@@ -1031,10 +1076,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     children: [
                       Text(
                         selectedItem.category,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E293B),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       Text(
@@ -1050,23 +1095,23 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 ),
                 Text(
                   '₹${selectedItem.amount.toStringAsFixed(selectedItem.amount % 1 == 0 ? 0 : 2)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF1E293B),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],
             ),
           )
         else
-          const Center(
+          Center(
             child: Text(
               'Tap any bar to inspect amount and details',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF94A3B8),
+                color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
               ),
             ),
           ),
@@ -1078,6 +1123,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     List<MapEntry<String, double>> sortedList,
     double totalSpend,
   ) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       key: const ValueKey('list_view'),
       children: sortedList.map((entry) {
@@ -1111,10 +1158,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       children: [
                         Text(
                           category,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF1E293B),
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -1131,10 +1178,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   ),
                   Text(
                     '₹${amount.toStringAsFixed(amount % 1 == 0 ? 0 : 2)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E293B),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ],
@@ -1145,7 +1192,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 child: LinearProgressIndicator(
                   value: percent.clamp(0.0, 1.0),
                   minHeight: 6,
-                  backgroundColor: const Color(0xFFF1F5F9),
+                  backgroundColor: isDarkMode ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
                   valueColor: AlwaysStoppedAnimation<Color>(color),
                 ),
               ),
@@ -1157,6 +1204,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   Widget _buildGroupSpendingSection(List<Map<String, dynamic>> items, String displayName) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
     final Map<String, double> groupTotals = {};
     final Map<String, String> groupTypes = {};
     for (var item in items) {
@@ -1174,12 +1224,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Spending by Group',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF1E293B),
+            color: Theme.of(context).colorScheme.onSurface,
             letterSpacing: -0.3,
           ),
         ),
@@ -1187,9 +1237,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         Container(
           padding: const EdgeInsets.all(AppSizes.l),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: borderColor),
           ),
           child: Column(
             children: sortedGroups.map((entry) {
@@ -1206,28 +1256,32 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(_getGroupIcon(type), size: 18, color: const Color(0xFF475569)),
+                      child: Icon(
+                        _getGroupIcon(type),
+                        size: 18,
+                        color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         groupName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E293B),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ),
                     Text(
                       '₹${amount.toStringAsFixed(amount % 1 == 0 ? 0 : 2)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E293B),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -1241,6 +1295,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   Widget _buildWhoPaidSection(List<ExpenseModel> expenses, String displayName) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
     final Map<String, double> payerTotals = {};
 
     for (var expense in expenses) {
@@ -1254,12 +1311,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Who Paid',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF1E293B),
+            color: Theme.of(context).colorScheme.onSurface,
             letterSpacing: -0.3,
           ),
         ),
@@ -1267,9 +1324,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         Container(
           padding: const EdgeInsets.all(AppSizes.l),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: borderColor),
           ),
           child: Column(
             children: sortedPayers.map((entry) {
@@ -1285,7 +1342,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   children: [
                     CircleAvatar(
                       radius: 16,
-                      backgroundColor: isMe ? AppColors.primary : const Color(0xFF94A3B8),
+                      backgroundColor: isMe
+                          ? AppColors.primary
+                          : (isDarkMode ? const Color(0xFF475569) : const Color(0xFF94A3B8)),
                       child: Text(
                         initial,
                         style: const TextStyle(
@@ -1302,16 +1361,16 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: isMe ? FontWeight.w800 : FontWeight.w600,
-                          color: const Color(0xFF1E293B),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ),
                     Text(
                       '₹${amount.toStringAsFixed(amount % 1 == 0 ? 0 : 2)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E293B),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -1325,30 +1384,40 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   Widget _buildNoDataForPeriod() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
-        children: const [
-          Icon(Icons.calendar_today_rounded, size: 36, color: Color(0xFF94A3B8)),
-          SizedBox(height: 12),
+        children: [
+          Icon(
+            Icons.calendar_today_rounded,
+            size: 36,
+            color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+          ),
+          const SizedBox(height: 12),
           Text(
             'No expenses recorded for this month',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1E293B),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
             'Switch to "All Time" to view your total analytics.',
-            style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            style: TextStyle(
+              fontSize: 13,
+              color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            ),
           ),
         ],
       ),
@@ -1356,6 +1425,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   Widget _buildEmptyState() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSizes.xxl),
@@ -1366,25 +1437,30 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: const Color(0xFFEEF2FF),
+                color: isDarkMode
+                    ? AppColors.primary.withValues(alpha: 0.15)
+                    : const Color(0xFFEEF2FF),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.pie_chart_outline_rounded, color: AppColors.primary, size: 40),
             ),
             const SizedBox(height: AppSizes.l),
-            const Text(
+            Text(
               'No Expenses Yet',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1E293B),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Add expenses in your groups to see your spending breakdown here.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+              style: TextStyle(
+                fontSize: 14,
+                color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
             ),
           ],
         ),
@@ -1431,10 +1507,12 @@ class _CategoryChartData {
 class _DonutChartPainter extends CustomPainter {
   final List<_CategoryChartData> items;
   final String? selectedCategory;
+  final bool isDarkMode;
 
   _DonutChartPainter({
     required this.items,
     this.selectedCategory,
+    this.isDarkMode = false,
   });
 
   @override
@@ -1446,7 +1524,7 @@ class _DonutChartPainter extends CustomPainter {
 
     // Subtle background track ring
     final bgPaint = Paint()
-      ..color = const Color(0xFFF1F5F9)
+      ..color = isDarkMode ? const Color(0xFF334155) : const Color(0xFFF1F5F9)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
     canvas.drawCircle(center, baseRadius, bgPaint);
@@ -1491,7 +1569,7 @@ class _DonutChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _DonutChartPainter oldDelegate) {
     return oldDelegate.selectedCategory != selectedCategory ||
-        oldDelegate.items != items;
+        oldDelegate.items != items ||
+        oldDelegate.isDarkMode != isDarkMode;
   }
 }
-

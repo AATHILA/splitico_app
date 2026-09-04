@@ -43,12 +43,13 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
     final mediaQuery = MediaQuery.of(context);
     final topPadding = mediaQuery.padding.top;
     final bottomPadding = mediaQuery.padding.bottom;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (!(ModalRoute.of(context)?.isCurrent ?? false)) return;
@@ -95,10 +96,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           '9:41',
                           style: TextStyle(
-                            color: Color(0xFF1E293B),
+                            color: isDarkMode ? Colors.white70 : const Color(0xFF1E293B),
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
                           ),
@@ -109,8 +110,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             Container(
                               width: 6,
                               height: 6,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF1E293B),
+                              decoration: BoxDecoration(
+                                color: isDarkMode ? Colors.white70 : const Color(0xFF1E293B),
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -119,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               width: 14,
                               height: 6,
                               decoration: BoxDecoration(
-                                color: Color(0xFF1E293B),
+                                color: isDarkMode ? Colors.white70 : const Color(0xFF1E293B),
                                 borderRadius: BorderRadius.circular(3),
                               ),
                             ),
@@ -127,8 +128,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             Container(
                               width: 6,
                               height: 6,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF1E293B),
+                              decoration: BoxDecoration(
+                                color: isDarkMode ? Colors.white70 : const Color(0xFF1E293B),
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -176,33 +177,33 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: AppSizes.xxxl),
 
                     // Header welcoming title
-                    const Text(
+                    Text(
                       'Welcome back',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E293B),
+                        color: theme.colorScheme.onSurface,
                         letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Sign in to your account',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF64748B),
+                        color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                       ),
                     ),
                     const SizedBox(height: AppSizes.xxxl),
 
                     // EMAIL input field
-                    const Text(
+                    Text(
                       'EMAIL',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF64748B),
+                        color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                         letterSpacing: 0.8,
                       ),
                     ),
@@ -211,12 +212,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       enabled: !isLoading,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1E293B),
+                        color: theme.colorScheme.onSurface,
                       ),
-                      decoration: _buildInputDecoration('Enter your email'),
+                      decoration: _buildInputDecoration('Enter your email', isDarkMode),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your email';
@@ -230,12 +231,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: AppSizes.xl),
 
                     // PASSWORD input field
-                    const Text(
+                    Text(
                       'PASSWORD',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF64748B),
+                        color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                         letterSpacing: 0.8,
                       ),
                     ),
@@ -244,12 +245,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _passwordController,
                       obscureText: _obscurePassword,
                       enabled: !isLoading,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1E293B),
+                        color: theme.colorScheme.onSurface,
                       ),
-                      decoration: _buildPasswordInputDecoration('Enter your password'),
+                      decoration: _buildPasswordInputDecoration('Enter your password', isDarkMode),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your password';
@@ -320,18 +321,27 @@ class _LoginScreenState extends State<LoginScreen> {
                     // Divider with "or"
                     Row(
                       children: [
-                        const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
+                        Expanded(
+                          child: Divider(
+                            color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
                             'or',
                             style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF94A3B8)),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                            ),
                           ),
                         ),
-                        const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                        Expanded(
+                          child: Divider(
+                            color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: AppSizes.xxl),
@@ -347,9 +357,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         );
                       },
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF1E293B),
+                        foregroundColor: isDarkMode ? Colors.white : const Color(0xFF1E293B),
+                        backgroundColor: theme.cardColor,
                         minimumSize: const Size(double.infinity, 54),
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        side: BorderSide(
+                          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -393,6 +406,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         showModalBottomSheet(
                           context: context,
                           isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
                           shape: const RoundedRectangleBorder(
                             borderRadius: BorderRadius.vertical(
                               top: Radius.circular(32),
@@ -403,7 +417,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primary,
-                        backgroundColor: AppColors.primaryLight,
+                        backgroundColor: isDarkMode ? const Color(0xFF1E293B) : AppColors.primaryLight,
                         minimumSize: const Size(double.infinity, 54),
                         side: const BorderSide(color: AppColors.primary, width: 1.5),
                         shape: RoundedRectangleBorder(
@@ -436,12 +450,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
+                        Text(
                           "Don't have an account? ",
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF64748B),
+                            color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                           ),
                         ),
                         GestureDetector(
@@ -475,15 +489,22 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  InputDecoration _buildInputDecoration(String hintText) {
+  InputDecoration _buildInputDecoration(String hintText, bool isDarkMode) {
     return InputDecoration(
       hintText: hintText,
+      hintStyle: TextStyle(
+        color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+      ),
       filled: true,
-      fillColor: const Color(0xFFF8FAFC),
+      fillColor: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderSide: BorderSide(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
@@ -491,23 +512,30 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderSide: BorderSide(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
       ),
     );
   }
 
-  InputDecoration _buildPasswordInputDecoration(String hintText) {
+  InputDecoration _buildPasswordInputDecoration(String hintText, bool isDarkMode) {
     return InputDecoration(
       hintText: hintText,
+      hintStyle: TextStyle(
+        color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+      ),
       filled: true,
-      fillColor: const Color(0xFFF8FAFC),
+      fillColor: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       suffixIcon: Padding(
         padding: const EdgeInsets.only(right: 8),
         child: IconButton(
           icon: Icon(
             _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-            color: const Color(0xFF94A3B8),
+            color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
             size: 20,
           ),
           onPressed: () {
@@ -519,7 +547,9 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderSide: BorderSide(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
@@ -527,7 +557,9 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderSide: BorderSide(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
       ),
     );
   }

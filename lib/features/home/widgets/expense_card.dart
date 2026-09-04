@@ -58,6 +58,7 @@ class ExpenseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final formattedAmount =
         '${isOwed ? '+' : '-'}₹${amount.toStringAsFixed(2)}';
     final amountStyle =
@@ -69,15 +70,17 @@ class ExpenseCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: AppSizes.m),
         padding: const EdgeInsets.all(AppSizes.xl),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(AppSizes.radiusXL),
           border: Border.all(
-            color: AppColors.border.withValues(alpha: 0.5),
+            color: isDarkMode
+                ? const Color(0xFF334155)
+                : AppColors.border.withValues(alpha: 0.5),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
+              color: Colors.black.withValues(alpha: isDarkMode ? 0.2 : 0.02),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -91,7 +94,7 @@ class ExpenseCard extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: iconBgColor,
+                color: isDarkMode ? iconBgColor.withValues(alpha: 0.25) : iconBgColor,
                 borderRadius: BorderRadius.circular(AppSizes.radiusM + 2),
               ),
               child: Center(
@@ -106,7 +109,9 @@ class ExpenseCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: AppTextStyles.expenseTitle,
+                    style: AppTextStyles.expenseTitle.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -115,14 +120,18 @@ class ExpenseCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     text: TextSpan(
-                      style: AppTextStyles.expenseSubtitle,
+                      style: AppTextStyles.expenseSubtitle.copyWith(
+                        color: isDarkMode
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
+                      ),
                       children: [
                         TextSpan(
                           text: groupName,
-                          style: const TextStyle(
-                            color: Color(
-                              0xFF334155,
-                            ), // Darker slate color for trip name
+                          style: TextStyle(
+                            color: isDarkMode
+                                ? const Color(0xFFCBD5E1)
+                                : const Color(0xFF334155),
                           ),
                         ),
                         const TextSpan(text: ' • '),
@@ -142,10 +151,12 @@ class ExpenseCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   _formatDateTime(dateTime),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF94A3B8), // Nice soft grey color
+                    color: isDarkMode
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
                   ),
                 ),
               ],

@@ -44,12 +44,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
     final mediaQuery = MediaQuery.of(context);
     final topPadding = mediaQuery.padding.top;
     final bottomPadding = mediaQuery.padding.bottom;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
           if (!(ModalRoute.of(context)?.isCurrent ?? false)) return;
@@ -96,10 +97,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           '9:41',
                           style: TextStyle(
-                            color: Color(0xFF1E293B),
+                            color: isDarkMode ? Colors.white70 : const Color(0xFF1E293B),
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
                           ),
@@ -110,8 +111,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             Container(
                               width: 6,
                               height: 6,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF1E293B),
+                              decoration: BoxDecoration(
+                                color: isDarkMode ? Colors.white70 : const Color(0xFF1E293B),
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -120,7 +121,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               width: 14,
                               height: 6,
                               decoration: BoxDecoration(
-                                color: Color(0xFF1E293B),
+                                color: isDarkMode ? Colors.white70 : const Color(0xFF1E293B),
                                 borderRadius: BorderRadius.circular(3),
                               ),
                             ),
@@ -128,8 +129,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             Container(
                               width: 6,
                               height: 6,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF1E293B),
+                              decoration: BoxDecoration(
+                                color: isDarkMode ? Colors.white70 : const Color(0xFF1E293B),
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -150,10 +151,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: const Color(0xFFE2E8F0),
+                                color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                               ),
                               boxShadow: [
                                 BoxShadow(
@@ -163,21 +164,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.arrow_back_rounded,
-                              color: Color(0xFF1E293B),
+                              color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
                               size: 20,
                             ),
                           ),
                         ),
                         const SizedBox(width: AppSizes.m),
                         // Title
-                        const Text(
+                        Text(
                           'Create account',
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF1E293B),
+                            color: theme.colorScheme.onSurface,
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -186,23 +187,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const SizedBox(height: AppSizes.l),
 
                     // Subtitle
-                    const Text(
+                    Text(
                       'Join thousands splitting smarter',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF64748B),
+                        color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                       ),
                     ),
                     const SizedBox(height: AppSizes.xxl),
 
                     // FULL NAME input field
-                    const Text(
+                    Text(
                       'FULL NAME',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF64748B),
+                        color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                         letterSpacing: 0.8,
                       ),
                     ),
@@ -211,12 +212,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       controller: _nameController,
                       keyboardType: TextInputType.name,
                       enabled: !isLoading,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1E293B),
+                        color: theme.colorScheme.onSurface,
                       ),
-                      decoration: _buildInputDecoration('Enter your full name'),
+                      decoration: _buildInputDecoration('Enter your full name', isDarkMode),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your name';
@@ -227,12 +228,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const SizedBox(height: AppSizes.xl),
 
                     // EMAIL input field
-                    const Text(
+                    Text(
                       'EMAIL',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF64748B),
+                        color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                         letterSpacing: 0.8,
                       ),
                     ),
@@ -241,12 +242,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       enabled: !isLoading,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1E293B),
+                        color: theme.colorScheme.onSurface,
                       ),
-                      decoration: _buildInputDecoration('Enter your email'),
+                      decoration: _buildInputDecoration('Enter your email', isDarkMode),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your email';
@@ -262,12 +263,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const SizedBox(height: AppSizes.xl),
 
                     // PASSWORD input field
-                    const Text(
+                    Text(
                       'PASSWORD',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF64748B),
+                        color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                         letterSpacing: 0.8,
                       ),
                     ),
@@ -276,13 +277,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       controller: _passwordController,
                       obscureText: _obscurePassword,
                       enabled: !isLoading,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1E293B),
+                        color: theme.colorScheme.onSurface,
                       ),
                       decoration: _buildPasswordInputDecoration(
                         'Enter your password',
+                        isDarkMode,
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -339,14 +341,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: RichText(
                         textAlign: TextAlign.center,
-                        text: const TextSpan(
+                        text: TextSpan(
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
-                            color: Color(0xFF94A3B8),
+                            color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                             height: 1.4,
                           ),
-                          children: [
+                          children: const [
                             TextSpan(
                               text:
                                   'By creating an account, you agree to our\n',
@@ -368,12 +370,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
+                        Text(
                           "Already have an account? ",
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF64748B),
+                            color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                           ),
                         ),
                         GestureDetector(
@@ -404,15 +406,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  InputDecoration _buildInputDecoration(String hintText) {
+  InputDecoration _buildInputDecoration(String hintText, bool isDarkMode) {
     return InputDecoration(
       hintText: hintText,
+      hintStyle: TextStyle(
+        color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+      ),
       filled: true,
-      fillColor: const Color(0xFFF8FAFC),
+      fillColor: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderSide: BorderSide(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
@@ -420,16 +429,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderSide: BorderSide(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
       ),
     );
   }
 
-  InputDecoration _buildPasswordInputDecoration(String hintText) {
+  InputDecoration _buildPasswordInputDecoration(String hintText, bool isDarkMode) {
     return InputDecoration(
       hintText: hintText,
+      hintStyle: TextStyle(
+        color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+      ),
       filled: true,
-      fillColor: const Color(0xFFF8FAFC),
+      fillColor: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       suffixIcon: Padding(
         padding: const EdgeInsets.only(right: 8),
@@ -438,7 +454,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             _obscurePassword
                 ? Icons.visibility_off_outlined
                 : Icons.visibility_outlined,
-            color: const Color(0xFF94A3B8),
+            color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
             size: 20,
           ),
           onPressed: () {
@@ -450,7 +466,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderSide: BorderSide(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
@@ -458,7 +476,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderSide: BorderSide(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
       ),
     );
   }

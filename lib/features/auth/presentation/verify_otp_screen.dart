@@ -130,9 +130,10 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
       },
       builder: (context, state) {
         final isLoading = state is AuthLoading;
+        final isDarkMode = theme.brightness == Brightness.dark;
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: theme.scaffoldBackgroundColor,
           body: SafeArea(
             top: false,
             bottom: false,
@@ -150,10 +151,10 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         '9:41',
                         style: TextStyle(
-                          color: Color(0xFF1E293B),
+                          color: isDarkMode ? Colors.white70 : const Color(0xFF1E293B),
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
                         ),
@@ -187,24 +188,27 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
+                            border: Border.all(
+                              color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                              width: 1,
+                            ),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.arrow_back_rounded,
-                            color: Color(0xFF1E293B),
+                            color: isDarkMode ? Colors.white : const Color(0xFF1E293B),
                             size: 20,
                           ),
                         ),
                       ),
                       const SizedBox(width: AppSizes.l),
-                      const Text(
+                      Text(
                         'Verify OTP',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF1E293B),
+                          color: theme.colorScheme.onSurface,
                           letterSpacing: -0.5,
                         ),
                       ),
@@ -213,26 +217,26 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                   const SizedBox(height: AppSizes.xxxl),
 
                   // 3. Keypad Illustration in Rounded blue/purple square
-                  Center(child: _buildIllustration()),
+                  Center(child: _buildIllustration(isDarkMode)),
                   const SizedBox(height: AppSizes.xxxl),
 
                   // 4. Titles (Check your SMS)
-                  const Text(
+                  Text(
                     'Check your SMS',
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E293B),
+                      color: theme.colorScheme.onSurface,
                       letterSpacing: -0.5,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'We sent a 6-digit code to your number',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF64748B),
+                      color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -273,7 +277,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                         width: 46,
                         height: 56,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: TextField(
@@ -282,17 +286,20 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                           textAlign: TextAlign.center,
                           keyboardType: TextInputType.number,
                           maxLength: 1,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.primary, // bold purple digits
+                            color: isDarkMode ? const Color(0xFF818CF8) : AppColors.primary,
                           ),
                           decoration: InputDecoration(
                             counterText: '',
                             contentPadding: EdgeInsets.zero,
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                              borderSide: BorderSide(
+                                color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                width: 1.5,
+                              ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
@@ -300,7 +307,10 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                              borderSide: BorderSide(
+                                color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                width: 1.5,
+                              ),
                             ),
                           ),
                           onChanged: (value) {
@@ -326,10 +336,10 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                   Center(
                     child: RichText(
                       text: TextSpan(
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF64748B),
+                          color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                         ),
                         children: [
                           const TextSpan(text: 'Resend OTP in '),
@@ -382,12 +392,12 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
+                        Text(
                           "Didn't receive the code? ",
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF64748B),
+                            color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                           ),
                         ),
                         GestureDetector(
@@ -398,7 +408,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: _timerSeconds > 0
-                                  ? const Color(0xFFC7D2FE) // faded purple
+                                  ? (isDarkMode ? const Color(0xFF475569) : const Color(0xFFC7D2FE))
                                   : AppColors.primary,
                             ),
                           ),
@@ -413,9 +423,14 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       decoration: ShapeDecoration(
-                        color: const Color(0xFFECFDF5), // light green
+                        color: isDarkMode ? const Color(0xFF064E3B).withValues(alpha: 0.3) : const Color(0xFFECFDF5),
                         shape: StadiumBorder(
-                          side: BorderSide(color: const Color(0xFFA7F3D0).withValues(alpha: 0.5), width: 1),
+                          side: BorderSide(
+                            color: isDarkMode
+                                ? const Color(0xFF065F46)
+                                : const Color(0xFFA7F3D0).withValues(alpha: 0.5),
+                            width: 1,
+                          ),
                         ),
                       ),
                       child: Row(
@@ -430,10 +445,10 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Text(
+                          Text(
                             'OTP valid for 10 minutes',
                             style: TextStyle(
-                              color: Color(0xFF047857), // dark green text
+                              color: isDarkMode ? const Color(0xFFA7F3D0) : const Color(0xFF047857),
                               fontSize: 13,
                               fontWeight: FontWeight.w800,
                             ),
@@ -452,12 +467,12 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
     );
   }
 
-  Widget _buildIllustration() {
+  Widget _buildIllustration(bool isDarkMode) {
     return Container(
       width: 84,
       height: 84,
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF), // soft light blue background
+        color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
         borderRadius: BorderRadius.circular(24),
       ),
       alignment: Alignment.center,

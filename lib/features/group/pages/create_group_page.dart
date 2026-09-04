@@ -64,8 +64,10 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -83,13 +85,15 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: Theme.of(context).cardColor,
                         shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(
+                          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.arrow_back_rounded,
-                        color: Color(0xFF1E293B),
+                        color: Theme.of(context).colorScheme.onSurface,
                         size: 20,
                       ),
                     ),
@@ -98,10 +102,10 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                     child: Text(
                       widget.groupToEdit != null ? 'Edit Group' : 'Create Group',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E293B),
+                        color: Theme.of(context).colorScheme.onSurface,
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -123,24 +127,26 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                     const SizedBox(height: AppSizes.s),
                     TextField(
                       controller: _nameController,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1E293B),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                       decoration: InputDecoration(
                         hintText: 'Enter Group Name',
-                        hintStyle: TextStyle(color: AppColors.textLight),
+                        hintStyle: TextStyle(
+                          color: isDarkMode ? const Color(0xFF64748B) : AppColors.textLight,
+                        ),
                         filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
+                        fillColor: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: AppSizes.l,
                           vertical: AppSizes.l,
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppSizes.radiusL),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE2E8F0),
+                          borderSide: BorderSide(
+                            color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
@@ -165,12 +171,12 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                     const SizedBox(height: AppSizes.m),
                     _buildMembersWrap(),
                     const SizedBox(height: AppSizes.m),
-                    const Text(
+                    Text(
                       'Invite via link or add by email',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF94A3B8),
+                        color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                       ),
                     ),
                     const SizedBox(height: AppSizes.xl),
@@ -264,14 +270,15 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     );
   }
 
-
   Widget _buildSectionHeader(String title) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w800,
-        color: AppColors.textSecondary,
+        color: isDarkMode ? const Color(0xFF94A3B8) : AppColors.textSecondary,
         letterSpacing: 0.8,
       ),
     );
@@ -303,6 +310,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     final label = type['label']!;
     final emoji = type['emoji']!;
     final isSelected = _selectedType == label;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: () {
@@ -313,25 +321,25 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
       child: Container(
         height: 108,
         decoration: BoxDecoration(
-          color:
-              isSelected
-                  ? AppColors.primary.withValues(alpha: 0.08)
-                  : Colors.white,
+          color: isSelected
+              ? AppColors.primary.withValues(alpha: isDarkMode ? 0.2 : 0.08)
+              : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(AppSizes.radiusXL),
           border: Border.all(
-            color: isSelected ? AppColors.primary : const Color(0xFFE2E8F0),
+            color: isSelected
+                ? AppColors.primary
+                : (isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
             width: isSelected ? 2 : 1,
           ),
-          boxShadow:
-              isSelected
-                  ? []
-                  : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.02),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+          boxShadow: isSelected
+              ? []
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDarkMode ? 0.2 : 0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -343,7 +351,9 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: isSelected ? AppColors.primary : const Color(0xFF475569),
+                color: isSelected
+                    ? AppColors.primary
+                    : (isDarkMode ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
               ),
             ),
           ],
@@ -365,18 +375,22 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
   }
 
   Widget _buildMemberChip(Map<String, dynamic> member) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSizes.m,
         vertical: AppSizes.s,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(AppSizes.radiusXL),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        border: Border.all(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.015),
+            color: Colors.black.withValues(alpha: isDarkMode ? 0.2 : 0.015),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -400,10 +414,10 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
           const SizedBox(width: AppSizes.s),
           Text(
             member['name'] as String,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF334155),
+              color: isDarkMode ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
             ),
           ),
           const SizedBox(width: AppSizes.xs + 2),
@@ -413,9 +427,9 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                 _members.remove(member);
               });
             },
-            child: const Icon(
+            child: Icon(
               Icons.close_rounded,
-              color: Color(0xFF94A3B8),
+              color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
               size: 16,
             ),
           ),
@@ -452,7 +466,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
         return BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
           child: Dialog(
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).cardColor,
             insetPadding: const EdgeInsets.symmetric(
               horizontal: 24,
               vertical: 24,
@@ -555,11 +569,13 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   }
 
   Widget _buildTempMemberRow(Map<String, dynamic> member, int index) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
         borderRadius: BorderRadius.circular(30),
       ),
       child: Row(
@@ -580,10 +596,10 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           Expanded(
             child: Text(
               member['name'] as String,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1E293B),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
@@ -606,33 +622,36 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Add a member',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1E293B),
+              color: Theme.of(context).colorScheme.onSurface,
               letterSpacing: -0.5,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Enter their name or nickname',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF94A3B8),
+              color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
             ),
           ),
           const SizedBox(height: 20),
           Container(
             decoration: BoxDecoration(
+              color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppColors.primary, width: 2.0),
             ),
@@ -649,18 +668,18 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                   child: TextField(
                     controller: _nameController,
                     autofocus: true,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       border: InputBorder.none,
                       hintText: 'Enter their name or nickname',
                       hintStyle: TextStyle(
-                        color: AppColors.textLight,
+                        color: isDarkMode ? const Color(0xFF64748B) : AppColors.textLight,
                         fontSize: 16,
                         fontWeight: FontWeight.normal,
                       ),
                     ),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.w600,
                     ),
                     onSubmitted: (_) => _addCurrentInput(),
@@ -714,7 +733,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              disabledBackgroundColor: const Color(0xFFE2E8F0),
+              disabledBackgroundColor: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
               disabledForegroundColor: const Color(0xFF94A3B8),
               minimumSize: const Size(double.infinity, 56),
               elevation: _tempMembers.isEmpty ? 0 : 2,

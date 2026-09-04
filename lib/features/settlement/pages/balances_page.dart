@@ -17,6 +17,7 @@ class BalancesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
     final topPadding = mediaQuery.padding.top;
+
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
         String displayName = 'You';
@@ -91,7 +92,7 @@ class BalancesPage extends StatelessWidget {
                         (memberBalances[payer] ?? 0.0) - individualShare;
                   }
                   if (payer.toLowerCase() != 'you' &&
-                      payer.toLowerCase() != displayName.toLowerCase()) {
+                    payer.toLowerCase() != displayName.toLowerCase()) {
                     memberMetadata.putIfAbsent(
                       payer,
                       () => {
@@ -121,9 +122,7 @@ class BalancesPage extends StatelessWidget {
                 memberBalances.values.where((b) => b.abs() > 0.01).length;
 
             return Scaffold(
-              backgroundColor: const Color(
-                0xFFF8FAFC,
-              ), // soft off-white background
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
               body: SafeArea(
                 bottom: false,
                 child: Padding(
@@ -137,7 +136,7 @@ class BalancesPage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // 1. Top status & Title header
-                      _buildHeader(),
+                      _buildHeader(context),
                       const SizedBox(height: AppSizes.l),
 
                       // 2. Net Balance Gradient Card
@@ -149,12 +148,12 @@ class BalancesPage extends StatelessWidget {
                       const SizedBox(height: AppSizes.xxl),
 
                       // 3. Section Title
-                      const Text(
+                      Text(
                         'Who owes whom',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF1E293B),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: AppSizes.m),
@@ -180,62 +179,16 @@ class BalancesPage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Phone top indicators (9:41, Actions)
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              '9:41',
-              style: TextStyle(
-                color: Color(0xFF1E293B),
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-              ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1E293B),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Container(
-                  width: 14,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1E293B),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSizes.m),
-        const Text(
+        Text(
           'Balances',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF0F172A),
+            color: Theme.of(context).colorScheme.onSurface,
             letterSpacing: -0.5,
           ),
         ),
@@ -363,7 +316,9 @@ class BalancesPage extends StatelessWidget {
     required List<GroupModel> groups,
     required String displayName,
   }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final List<Map<String, dynamic>> balanceData = [];
+
     memberBalances.forEach((member, balance) {
       if (balance.abs() < 0.01) return; // skip zero balances
 
@@ -376,10 +331,12 @@ class BalancesPage extends StatelessWidget {
           (member.isNotEmpty ? member[0].toUpperCase() : '?');
       final avatarColor = metadata['color'] as Color? ?? Colors.deepPurple;
 
-      final badgeBg =
-          isOwed ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2);
-      final badgeText =
-          isOwed ? const Color(0xFF059669) : const Color(0xFFEF4444);
+      final badgeBg = isOwed
+          ? (isDarkMode ? const Color(0xFF064E3B).withValues(alpha: 0.5) : const Color(0xFFECFDF5))
+          : (isDarkMode ? const Color(0xFF7F1D1D).withValues(alpha: 0.5) : const Color(0xFFFEF2F2));
+      final badgeText = isOwed
+          ? (isDarkMode ? const Color(0xFF34D399) : const Color(0xFF059669))
+          : (isDarkMode ? const Color(0xFFF87171) : const Color(0xFFEF4444));
       final amountSign = isOwed ? '→' : '←';
       final amountText = '₹${balance.abs().toStringAsFixed(0)} $amountSign';
 
@@ -405,12 +362,12 @@ class BalancesPage extends StatelessWidget {
               color: AppColors.expensePositive.withValues(alpha: 0.5),
             ),
             const SizedBox(height: AppSizes.m),
-            const Text(
+            Text(
               'You are all settled up!',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF64748B),
+                color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
               ),
             ),
           ],
@@ -444,12 +401,14 @@ class BalancesPage extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: AppSizes.m),
               padding: const EdgeInsets.all(AppSizes.l),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFF1F5F9)),
+                border: Border.all(
+                  color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
+                    color: Colors.black.withValues(alpha: isDarkMode ? 0.2 : 0.02),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -479,19 +438,19 @@ class BalancesPage extends StatelessWidget {
                       children: [
                         Text(
                           data['name'] as String,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           data['status'] as String,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF94A3B8),
+                            color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                           ),
                         ),
                       ],
