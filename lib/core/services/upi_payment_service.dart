@@ -641,125 +641,380 @@ class UpiPaymentService {
     );
   }
 
-  /// Bank transfer details bottom sheet
+  /// Bank transfer details bottom sheet with editable fields
   static void _showBankTransferDialog({
     required BuildContext context,
     required String name,
     required double amount,
     VoidCallback? onSettled,
   }) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (dialogContext) {
-        return Container(
-          padding: const EdgeInsets.all(AppSizes.xxl),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border.all(
-              color: isDarkMode
-                  ? const Color(0xFF334155)
-                  : const Color(0xFFE2E8F0),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Bank Transfer to $name',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Amount to transfer: ₹${amount.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isDarkMode
-                      ? const Color(0xFF0F172A)
-                      : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isDarkMode
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFE2E8F0),
-                  ),
-                ),
-                child: Text(
-                  'Account Number: 919876543210\nIFSC Code: HDFC0001234\nAccount Name: $name\nBank: HDFC Bank',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: isDarkMode
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B),
-                    height: 1.6,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              ElevatedButton.icon(
-                onPressed: () {
-                  Clipboard.setData(const ClipboardData(text: '919876543210'));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Account number copied to clipboard!'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.copy_rounded, size: 16),
-                label: const Text('Copy Account Details'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              OutlinedButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  _notifySettled(context, name, amount, 'via Bank Transfer 🏦', onSettled);
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary),
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: const Text(
-                  'Mark as Settled ✓',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
+        return _EditableBankTransferDialog(
+          parentContext: context,
+          name: name,
+          amount: amount,
+          onSettled: onSettled,
         );
       },
+    );
+  }
+}
+
+class _EditableBankTransferDialog extends StatefulWidget {
+  final BuildContext parentContext;
+  final String name;
+  final double amount;
+  final VoidCallback? onSettled;
+
+  const _EditableBankTransferDialog({
+    required this.parentContext,
+    required this.name,
+    required this.amount,
+    this.onSettled,
+  });
+
+  @override
+  State<_EditableBankTransferDialog> createState() =>
+      _EditableBankTransferDialogState();
+}
+
+class _EditableBankTransferDialogState
+    extends State<_EditableBankTransferDialog> {
+  late final TextEditingController _accountNameController;
+  late final TextEditingController _accountNumberController;
+  late final TextEditingController _ifscController;
+  late final TextEditingController _bankNameController;
+
+  @override
+  void initState() {
+    super.initState();
+    _accountNameController = TextEditingController(text: widget.name);
+    _accountNumberController = TextEditingController(text: '919876543210');
+    _ifscController = TextEditingController(text: 'HDFC0001234');
+    _bankNameController = TextEditingController(text: 'HDFC Bank');
+  }
+
+  @override
+  void dispose() {
+    _accountNameController.dispose();
+    _accountNumberController.dispose();
+    _ifscController.dispose();
+    _bankNameController.dispose();
+    super.dispose();
+  }
+
+  void _copyField(String label, String value) {
+    if (value.trim().isEmpty) return;
+    Clipboard.setData(ClipboardData(text: value.trim()));
+    ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+      SnackBar(
+        content: Text('$label copied to clipboard!'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _copyAllDetails() {
+    final text = '''
+Account Holder: ${_accountNameController.text.trim()}
+Account Number: ${_accountNumberController.text.trim()}
+IFSC Code: ${_ifscController.text.trim().toUpperCase()}
+Bank: ${_bankNameController.text.trim()}
+Amount: ₹${widget.amount.toStringAsFixed(2)}
+'''.trim();
+
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+      const SnackBar(
+        content: Text('All bank details copied to clipboard!'),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        AppSizes.xxl,
+        AppSizes.m,
+        AppSizes.xxl,
+        AppSizes.l + bottomInset,
+      ),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border.all(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: isDarkMode
+                      ? const Color(0xFF475569)
+                      : const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            // Header Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bank Transfer',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: theme.colorScheme.onSurface,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Edit & copy recipient bank details',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: isDarkMode
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(
+                      alpha: isDarkMode ? 0.2 : 0.1,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '₹${widget.amount.toStringAsFixed(widget.amount % 1 == 0 ? 0 : 2)}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSizes.l),
+
+            // 1. Account Holder Name
+            _buildEditableField(
+              label: 'ACCOUNT HOLDER NAME',
+              controller: _accountNameController,
+              icon: Icons.person_outline_rounded,
+              isDarkMode: isDarkMode,
+            ),
+            const SizedBox(height: 12),
+
+            // 2. Account Number
+            _buildEditableField(
+              label: 'ACCOUNT NUMBER',
+              controller: _accountNumberController,
+              icon: Icons.credit_card_rounded,
+              isDarkMode: isDarkMode,
+              keyboardType: TextInputType.number,
+              showCopy: true,
+              onCopy:
+                  () => _copyField(
+                    'Account number',
+                    _accountNumberController.text,
+                  ),
+            ),
+            const SizedBox(height: 12),
+
+            // 3. IFSC Code
+            _buildEditableField(
+              label: 'IFSC CODE',
+              controller: _ifscController,
+              icon: Icons.pin_outlined,
+              isDarkMode: isDarkMode,
+              textCapitalization: TextCapitalization.characters,
+              showCopy: true,
+              onCopy: () => _copyField('IFSC code', _ifscController.text),
+            ),
+            const SizedBox(height: 12),
+
+            // 4. Bank Name
+            _buildEditableField(
+              label: 'BANK NAME',
+              controller: _bankNameController,
+              icon: Icons.account_balance_outlined,
+              isDarkMode: isDarkMode,
+            ),
+            const SizedBox(height: AppSizes.l),
+
+            // Copy All Details Button
+            ElevatedButton.icon(
+              onPressed: _copyAllDetails,
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              label: const Text(
+                'Copy All Bank Details',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 50),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Mark as Settled Button
+            OutlinedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                UpiPaymentService._notifySettled(
+                  widget.parentContext,
+                  widget.name,
+                  widget.amount,
+                  'via Bank Transfer 🏦',
+                  widget.onSettled,
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary, width: 1.5),
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text(
+                'Mark as Settled ✓',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEditableField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    required bool isDarkMode,
+    TextInputType keyboardType = TextInputType.text,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+    bool showCopy = false,
+    VoidCallback? onCopy,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color:
+                isDarkMode
+                    ? const Color(0xFF94A3B8)
+                    : const Color(0xFF64748B),
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          decoration: BoxDecoration(
+            color:
+                isDarkMode
+                    ? const Color(0xFF0F172A)
+                    : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color:
+                  isDarkMode
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0),
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color:
+                    isDarkMode
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
+                size: 18,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  keyboardType: keyboardType,
+                  textCapitalization: textCapitalization,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              if (showCopy && onCopy != null)
+                IconButton(
+                  onPressed: onCopy,
+                  icon: const Icon(Icons.copy_rounded, size: 16),
+                  color: AppColors.primary,
+                  tooltip: 'Copy',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
