@@ -11,6 +11,7 @@ import '../bloc/group_bloc.dart';
 import '../bloc/group_state.dart';
 import '../bloc/group_event.dart';
 import 'create_group_page.dart';
+import '../../settlement/pages/smart_settle_page.dart';
 
 class GroupDetailsPage extends StatelessWidget {
   final GroupModel group;
@@ -546,13 +547,29 @@ class GroupDetailsPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: AppSizes.s),
-                    Text(
-                      member['name'] as String,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isDarkMode ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          member['name'] as String,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: isDarkMode ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                          ),
+                        ),
+                        if (member['upiId'] != null &&
+                            member['upiId'].toString().trim().isNotEmpty)
+                          Text(
+                            member['upiId'].toString().trim(),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
@@ -779,10 +796,10 @@ class GroupDetailsPage extends StatelessWidget {
           Expanded(
             child: ElevatedButton(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Settle Up clicked!'),
-                    behavior: SnackBarBehavior.floating,
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SmartSettlePage(group: currentGroup),
                   ),
                 );
               },

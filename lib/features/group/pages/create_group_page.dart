@@ -376,6 +376,8 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
 
   Widget _buildMemberChip(Map<String, dynamic> member) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final upiId = member['upiId']?.toString().trim();
+    final hasUpi = upiId != null && upiId.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -400,7 +402,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           CircleAvatar(
-            radius: 12,
+            radius: 13,
             backgroundColor: member['avatarBgColor'] as Color,
             child: Text(
               member['initial'] as String,
@@ -412,13 +414,28 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
             ),
           ),
           const SizedBox(width: AppSizes.s),
-          Text(
-            member['name'] as String,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: isDarkMode ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                member['name'] as String,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: isDarkMode ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                ),
+              ),
+              if (hasUpi)
+                Text(
+                  upiId,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+            ],
           ),
           const SizedBox(width: AppSizes.xs + 2),
           GestureDetector(
@@ -468,11 +485,11 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
           child: Dialog(
             backgroundColor: Theme.of(context).cardColor,
             insetPadding: const EdgeInsets.symmetric(
-              horizontal: 24,
+              horizontal: 20,
               vertical: 24,
             ),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(32),
+              borderRadius: BorderRadius.circular(28),
             ),
             child: AddMemberDialog(
               existingMembers: _members,
@@ -505,6 +522,7 @@ class AddMemberDialog extends StatefulWidget {
 
 class _AddMemberDialogState extends State<AddMemberDialog> {
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _upiController = TextEditingController();
   final List<Map<String, dynamic>> _tempMembers = [];
 
   @override
@@ -518,11 +536,13 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   @override
   void dispose() {
     _nameController.dispose();
+    _upiController.dispose();
     super.dispose();
   }
 
   void _addCurrentInput() {
     final name = _nameController.text.trim();
+    final upiId = _upiController.text.trim();
     if (name.isEmpty) return;
 
     final isAlreadyAdded =
@@ -536,7 +556,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     if (isAlreadyAdded) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('"$name" is already added.'),
+          content: Text('"$name" is already in this group.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -563,20 +583,26 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
         'name': name,
         'initial': initial,
         'avatarBgColor': color,
+        'upiId': upiId.isNotEmpty ? upiId : null,
       });
       _nameController.clear();
+      _upiController.clear();
     });
   }
 
   Widget _buildTempMemberRow(Map<String, dynamic> member, int index) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final upiId = member['upiId']?.toString();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFDBEAFE),
+        ),
       ),
       child: Row(
         children: [
@@ -592,15 +618,30 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              member['name'] as String,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  member['name'] as String,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                if (upiId != null && upiId.isNotEmpty)
+                  Text(
+                    '💳 $upiId',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+              ],
             ),
           ),
           GestureDetector(
@@ -609,10 +650,10 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                 _tempMembers.removeAt(index);
               });
             },
-            child: const Icon(
-              Icons.check_circle,
-              color: AppColors.expensePositive,
-              size: 20,
+            child: Icon(
+              Icons.close_rounded,
+              color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+              size: 18,
             ),
           ),
         ],
@@ -625,154 +666,216 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Add a member',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: Theme.of(context).colorScheme.onSurface,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Enter their name or nickname',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            decoration: BoxDecoration(
-              color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.primary, width: 2.0),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.person_outline_rounded,
-                  color: AppColors.primary,
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _nameController,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      hintText: 'Enter their name or nickname',
-                      hintStyle: TextStyle(
-                        color: isDarkMode ? const Color(0xFF64748B) : AppColors.textLight,
-                        fontSize: 16,
-                        fontWeight: FontWeight.normal,
-                      ),
-                    ),
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    onSubmitted: (_) => _addCurrentInput(),
-                  ),
-                ),
-                if (_nameController.text.trim().isNotEmpty)
-                  GestureDetector(
-                    onTap: _addCurrentInput,
-                    child: const Icon(
-                      Icons.check_circle,
-                      color: AppColors.expensePositive,
-                      size: 24,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          if (_tempMembers.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.3,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  children:
-                      _tempMembers
-                          .asMap()
-                          .map(
-                            (index, member) => MapEntry(
-                              index,
-                              _buildTempMemberRow(member, index),
-                            ),
-                          )
-                          .values
-                          .toList(),
-                ),
+      padding: const EdgeInsets.all(22),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Add Member',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context).colorScheme.onSurface,
+                letterSpacing: -0.5,
               ),
             ),
-          ],
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed:
-                _tempMembers.isEmpty
-                    ? null
-                    : () {
-                      widget.onMembersAdded(_tempMembers);
-                      Navigator.of(context).pop();
-                    },
+            const SizedBox(height: 4),
+            Text(
+              'Enter name and optional UPI ID for easy 1-tap settlement.',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 18),
 
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-              disabledForegroundColor: const Color(0xFF94A3B8),
-              minimumSize: const Size(double.infinity, 56),
-              elevation: _tempMembers.isEmpty ? 0 : 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'Done',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            Container(
+              decoration: BoxDecoration(
+                color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                 ),
-                if (_tempMembers.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${_tempMembers.length} added',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.person_outline_rounded,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _nameController,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: 'Name (e.g. Rahul)',
+                        hintStyle: TextStyle(
+                          color: isDarkMode ? const Color(0xFF64748B) : AppColors.textLight,
+                          fontSize: 14,
+                        ),
                       ),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      onSubmitted: (_) => _addCurrentInput(),
                     ),
                   ),
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+
+            Container(
+              decoration: BoxDecoration(
+                color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.qr_code_2_rounded,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _upiController,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: 'UPI ID: rahul@upi (optional)',
+                        hintStyle: TextStyle(
+                          color: isDarkMode ? const Color(0xFF64748B) : AppColors.textLight,
+                          fontSize: 14,
+                        ),
+                      ),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      onSubmitted: (_) => _addCurrentInput(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed:
+                    _nameController.text.trim().isEmpty ? null : _addCurrentInput,
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text(
+                  'Add to List',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+
+            if (_tempMembers.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.25,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children:
+                        _tempMembers
+                            .asMap()
+                            .map(
+                              (index, member) => MapEntry(
+                                index,
+                                _buildTempMemberRow(member, index),
+                              ),
+                            )
+                            .values
+                            .toList(),
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 18),
+
+            ElevatedButton(
+              onPressed:
+                  _tempMembers.isEmpty
+                      ? null
+                      : () {
+                        widget.onMembersAdded(_tempMembers);
+                        Navigator.of(context).pop();
+                      },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor:
+                    isDarkMode
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFE2E8F0),
+                disabledForegroundColor: const Color(0xFF94A3B8),
+                minimumSize: const Size(double.infinity, 52),
+                elevation: _tempMembers.isEmpty ? 0 : 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Done',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                  if (_tempMembers.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${_tempMembers.length} added',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
