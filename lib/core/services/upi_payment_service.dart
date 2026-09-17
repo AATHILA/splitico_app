@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -5,56 +6,188 @@ import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
 
 class UpiPaymentService {
-  /// Builds a standard NPCI compliant UPI payment URI.
-  static Uri buildUri({
+  static const MethodChannel _channel = MethodChannel(
+    'com.example.splitico/upi_pay',
+  );
+
+  /// Direct pay action triggered when clicking the "Pay" button.
+  /// Bypasses intermediate payment method bottom sheet, launches
+  /// Android's native system UPI app chooser dialog, and shows the
+  /// confirmation dialog ONLY when the user returns to Splitico.
+  static Future<void> directPay({
+    required BuildContext context,
+    required String name,
+    required double amount,
+    required String upiId,
+    VoidCallback? onSettled,
+  }) async {
+    final cleanUpiId = upiId.trim();
+    if (cleanUpiId.isEmpty || !cleanUpiId.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please enter a valid UPI ID for $name (e.g. name@oksbi)',
+          ),
+          backgroundColor: Colors.orange.shade800,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    bool launched = false;
+    try {
+      launched = await pay(upiId: cleanUpiId, name: name, amount: amount);
+    } catch (e) {
+      debugPrint('UPI launch error: $e');
+    }
+
+    if (!context.mounted) return;
+
+    if (launched) {
+      // Ensure the app has returned to resumed state before presenting dialog
+      await _waitForAppReturn();
+      if (!context.mounted) return;
+
+      _showPaymentConfirmationDialog(
+        context: context,
+        name: name,
+        amount: amount,
+        upiId: cleanUpiId,
+        onSettled: onSettled,
+      );
+    } else {
+      _showUpiFallbackDialog(
+        context: context,
+        name: name,
+        upiId: cleanUpiId,
+        amount: amount,
+        onSettled: onSettled,
+      );
+    }
+  }
+
+  /// Helper to wait until the app returns to foreground (resumed state).
+  static Future<void> _waitForAppReturn() async {
+    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+        return;
+      }
+    }
+
+    final completer = Completer<void>();
+    late final AppLifecycleListener listener;
+
+    listener = AppLifecycleListener(
+      onResume: () {
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      },
+    );
+
+    await Future.any([
+      completer.future,
+      Future.delayed(const Duration(minutes: 5)),
+    ]);
+
+    listener.dispose();
+  }
+
+  /// Builds a standard NPCI compliant P2P UPI payment URI String.
+  static String buildUriString({
     required String upiId,
     required String name,
     required double amount,
     String? note,
+    String? txnRef,
   }) {
     final cleanUpiId = upiId.trim();
     final cleanName = name.trim();
     final cleanNote = (note ?? 'Splitico Settlement').trim();
     final formattedAmount = amount.toStringAsFixed(2);
 
-    final urlString =
-        'upi://pay?pa=$cleanUpiId&pn=${Uri.encodeComponent(cleanName)}&am=$formattedAmount&cu=INR&tn=${Uri.encodeComponent(cleanNote)}';
+    final uriBuffer = StringBuffer(
+      'upi://pay'
+      '?pa=$cleanUpiId'
+      '&pn=${Uri.encodeComponent(cleanName)}'
+      '&am=$formattedAmount'
+      '&cu=INR'
+      '&tn=${Uri.encodeComponent(cleanNote)}',
+    );
 
-    return Uri.parse(urlString);
+    // NPCI UPI Guideline: 'tr' (Transaction Ref ID) is strictly for Merchant (P2M) transactions.
+    // For P2P peer-to-peer payments, passing a custom 'tr' causes UPI apps (GPay, PhonePe, Paytm)
+    // to fail with "Invalid Transaction Reference" because the payee VPA is a personal account.
+    if (txnRef != null && txnRef.trim().isNotEmpty) {
+      uriBuffer.write('&tr=${Uri.encodeComponent(txnRef.trim())}');
+    }
+
+    return uriBuffer.toString();
   }
 
-  /// Attempts to launch the UPI app directly.
+  /// Builds a standard NPCI compliant P2P UPI payment Uri object.
+  static Uri buildUri({
+    required String upiId,
+    required String name,
+    required double amount,
+    String? note,
+  }) {
+    return Uri.parse(
+      buildUriString(upiId: upiId, name: name, amount: amount, note: note),
+    );
+  }
+
+  /// Attempts to launch the UPI intent directly via native MethodChannel chooser,
+  /// opening Android's native app selector (GPay, PhonePe, Paytm, BHIM, etc.).
   static Future<bool> pay({
     required String upiId,
     required String name,
     required double amount,
     String? note,
   }) async {
-    final uri = buildUri(
+    debugPrint('UPI ID: $upiId');
+    debugPrint('Name: $name');
+    debugPrint('Amount: $amount');
+
+    final urlString = buildUriString(
       upiId: upiId,
       name: name,
       amount: amount,
       note: note,
     );
+    debugPrint('UPI URI: $urlString');
 
+    // 1. Try Android native Intent.createChooser via MethodChannel
+    try {
+      final bool? result = await _channel.invokeMethod<bool>(
+        'launchUpiChooser',
+        {'uri': urlString},
+      );
+      if (result == true) return true;
+    } catch (e) {
+      debugPrint('Native MethodChannel launchUpiChooser error: $e');
+    }
+
+    // 2. Fallback attempt via url_launcher
+    final uri = Uri.parse(urlString);
     try {
       if (await canLaunchUrl(uri)) {
         final launched = await launchUrl(
           uri,
-          mode: LaunchMode.externalApplication,
+          mode: LaunchMode.externalNonBrowserApplication,
         );
         if (launched) return true;
       }
 
-      // Fallback attempt: on some devices canLaunchUrl reports false due to OEM restrictions,
-      // but launchUrl still succeeds in opening the system intent chooser.
       final launchedDirectly = await launchUrl(
         uri,
         mode: LaunchMode.externalApplication,
       );
       if (launchedDirectly) return true;
     } catch (e) {
-      debugPrint('Error launching UPI URI: $e');
+      debugPrint('Error launching UPI URI via url_launcher: $e');
     }
 
     throw Exception(
@@ -74,162 +207,17 @@ class UpiPaymentService {
     required String upiId,
     VoidCallback? onSettled,
   }) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (sheetContext) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(
-            AppSizes.xxl,
-            AppSizes.m,
-            AppSizes.xxl,
-            AppSizes.l,
-          ),
-          decoration: BoxDecoration(
-            color: theme.cardColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border.all(
-              color: isDarkMode
-                  ? const Color(0xFF334155)
-                  : const Color(0xFFE2E8F0),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Drag handle
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: isDarkMode
-                        ? const Color(0xFF475569)
-                        : const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-
-              // Title: Pay Rahul ₹500
-              Text(
-                'Pay $name ₹${amount.toStringAsFixed(0)}',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: theme.colorScheme.onSurface,
-                  letterSpacing: -0.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-
-              // Subtitle: Choose payment method
-              Text(
-                'Choose payment method',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: isDarkMode
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFF64748B),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSizes.xl),
-
-              // 1. UPI Option
-              _buildPaymentOptionTile(
-                context: sheetContext,
-                icon: '💳',
-                title: 'UPI',
-                subtitle: 'Google Pay, PhonePe, Paytm, BHIM',
-                isDarkMode: isDarkMode,
-                onTap: () async {
-                  Navigator.of(sheetContext).pop();
-                  try {
-                    await pay(
-                      upiId: upiId,
-                      name: name,
-                      amount: amount,
-                    );
-                  } catch (e) {
-                    debugPrint(e.toString());
-                    if (context.mounted) {
-                      _showUpiFallbackDialog(
-                        context: context,
-                        name: name,
-                        upiId: upiId,
-                        amount: amount,
-                        onSettled: onSettled,
-                      );
-                    }
-                  }
-                },
-              ),
-              const SizedBox(height: AppSizes.m),
-
-              // 2. Bank Transfer Option
-              _buildPaymentOptionTile(
-                context: sheetContext,
-                icon: '🏦',
-                title: 'Bank Transfer',
-                subtitle: 'Direct IMPS / NEFT transfer',
-                isDarkMode: isDarkMode,
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _showBankTransferDialog(
-                    context: context,
-                    name: name,
-                    amount: amount,
-                    onSettled: onSettled,
-                  );
-                },
-              ),
-              const SizedBox(height: AppSizes.m),
-
-              // 3. Cash Option
-              _buildPaymentOptionTile(
-                context: sheetContext,
-                icon: '💵',
-                title: 'Cash',
-                subtitle: 'Settle in person with physical cash',
-                isDarkMode: isDarkMode,
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _notifySettled(context, name, amount, 'in cash 💵', onSettled);
-                },
-              ),
-              const SizedBox(height: AppSizes.l),
-
-              // Cancel Button
-              TextButton(
-                onPressed: () => Navigator.of(sheetContext).pop(),
-                style: TextButton.styleFrom(
-                  foregroundColor: isDarkMode
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFF64748B),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
+        return _PaymentMethodBottomSheet(
+          parentContext: context,
+          name: name,
+          amount: amount,
+          initialUpiId: upiId,
+          onSettled: onSettled,
         );
       },
     );
@@ -265,9 +253,10 @@ class UpiPaymentService {
             color: theme.cardColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             border: Border.all(
-              color: isDarkMode
-                  ? const Color(0xFF334155)
-                  : const Color(0xFFE2E8F0),
+              color:
+                  isDarkMode
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0),
             ),
           ),
           child: Column(
@@ -281,9 +270,10 @@ class UpiPaymentService {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
-                    color: isDarkMode
-                        ? const Color(0xFF475569)
-                        : const Color(0xFFCBD5E1),
+                    color:
+                        isDarkMode
+                            ? const Color(0xFF475569)
+                            : const Color(0xFFCBD5E1),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -308,9 +298,10 @@ class UpiPaymentService {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: isDarkMode
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFF64748B),
+                  color:
+                      isDarkMode
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -325,7 +316,13 @@ class UpiPaymentService {
                 isDarkMode: isDarkMode,
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-                  _notifySettled(context, name, amount, 'in cash 💵', onSettled);
+                  _notifySettled(
+                    context,
+                    name,
+                    amount,
+                    'in cash 💵',
+                    onSettled,
+                  );
                 },
               ),
               const SizedBox(height: AppSizes.m),
@@ -339,7 +336,13 @@ class UpiPaymentService {
                 isDarkMode: isDarkMode,
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-                  _notifySettled(context, name, amount, 'via UPI 📱', onSettled);
+                  _notifySettled(
+                    context,
+                    name,
+                    amount,
+                    'via UPI 📱',
+                    onSettled,
+                  );
                 },
               ),
               const SizedBox(height: AppSizes.m),
@@ -353,7 +356,13 @@ class UpiPaymentService {
                 isDarkMode: isDarkMode,
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-                  _notifySettled(context, name, amount, 'via Bank Transfer 🏦', onSettled);
+                  _notifySettled(
+                    context,
+                    name,
+                    amount,
+                    'via Bank Transfer 🏦',
+                    onSettled,
+                  );
                 },
               ),
               const SizedBox(height: AppSizes.m),
@@ -376,9 +385,10 @@ class UpiPaymentService {
               TextButton(
                 onPressed: () => Navigator.of(sheetContext).pop(),
                 style: TextButton.styleFrom(
-                  foregroundColor: isDarkMode
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFF64748B),
+                  foregroundColor:
+                      isDarkMode
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -386,10 +396,7 @@ class UpiPaymentService {
                 ),
                 child: const Text(
                   'Cancel',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                 ),
               ),
             ],
@@ -437,9 +444,8 @@ class UpiPaymentService {
           color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isDarkMode
-                ? const Color(0xFF334155)
-                : const Color(0xFFE2E8F0),
+            color:
+                isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
           ),
         ),
         child: Row(
@@ -448,9 +454,10 @@ class UpiPaymentService {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: isDarkMode
-                    ? const Color(0xFF0F172A)
-                    : const Color(0xFFEEF2FF),
+                color:
+                    isDarkMode
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFEEF2FF),
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.center,
@@ -475,9 +482,10 @@ class UpiPaymentService {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: isDarkMode
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF64748B),
+                      color:
+                          isDarkMode
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
                     ),
                   ),
                 ],
@@ -485,9 +493,10 @@ class UpiPaymentService {
             ),
             Icon(
               Icons.chevron_right_rounded,
-              color: isDarkMode
-                  ? const Color(0xFF64748B)
-                  : const Color(0xFF94A3B8),
+              color:
+                  isDarkMode
+                      ? const Color(0xFF64748B)
+                      : const Color(0xFF94A3B8),
               size: 20,
             ),
           ],
@@ -516,9 +525,10 @@ class UpiPaymentService {
             color: Theme.of(context).cardColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             border: Border.all(
-              color: isDarkMode
-                  ? const Color(0xFF334155)
-                  : const Color(0xFFE2E8F0),
+              color:
+                  isDarkMode
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0),
             ),
           ),
           child: Column(
@@ -538,9 +548,10 @@ class UpiPaymentService {
                 'Open any UPI app and transfer ₹${amount.toStringAsFixed(0)} to:',
                 style: TextStyle(
                   fontSize: 13,
-                  color: isDarkMode
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFF64748B),
+                  color:
+                      isDarkMode
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                 ),
               ),
               const SizedBox(height: 16),
@@ -552,14 +563,16 @@ class UpiPaymentService {
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: isDarkMode
-                      ? const Color(0xFF0F172A)
-                      : const Color(0xFFF8FAFC),
+                  color:
+                      isDarkMode
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: isDarkMode
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFE2E8F0),
+                    color:
+                        isDarkMode
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
                   ),
                 ),
                 child: Row(
@@ -572,9 +585,10 @@ class UpiPaymentService {
                             'Recipient UPI ID',
                             style: TextStyle(
                               fontSize: 11,
-                              color: isDarkMode
-                                  ? const Color(0xFF64748B)
-                                  : const Color(0xFF94A3B8),
+                              color:
+                                  isDarkMode
+                                      ? const Color(0xFF64748B)
+                                      : const Color(0xFF94A3B8),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -662,6 +676,466 @@ class UpiPaymentService {
       },
     );
   }
+
+  static void _showPaymentConfirmationDialog({
+    required BuildContext context,
+    required String name,
+    required double amount,
+    required String upiId,
+    VoidCallback? onSettled,
+  }) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(
+            AppSizes.xxl,
+            AppSizes.m,
+            AppSizes.xxl,
+            AppSizes.l,
+          ),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border.all(
+              color:
+                  isDarkMode
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color:
+                        isDarkMode
+                            ? const Color(0xFF475569)
+                            : const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const Text(
+                '💸 Did the payment go through?',
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '₹${amount.toStringAsFixed(0)} to $name via $upiId',
+                style: TextStyle(
+                  fontSize: 13,
+                  color:
+                      isDarkMode
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSizes.xl),
+
+              // Yes — mark settled
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  _notifySettled(
+                    context,
+                    name,
+                    amount,
+                    'via UPI 📱',
+                    onSettled,
+                  );
+                },
+                icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+                label: const Text(
+                  'Yes, Payment Successful ✓',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSizes.m),
+
+              // No — retry or cancel
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(ctx).pop(),
+                icon: const Icon(Icons.close_rounded, size: 20),
+                label: const Text(
+                  'No, Payment Failed',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.redAccent,
+                  side: const BorderSide(color: Colors.redAccent),
+                  minimumSize: const Size(double.infinity, 52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PaymentMethodBottomSheet extends StatefulWidget {
+  final BuildContext parentContext;
+  final String name;
+  final double amount;
+  final String initialUpiId;
+  final VoidCallback? onSettled;
+
+  const _PaymentMethodBottomSheet({
+    required this.parentContext,
+    required this.name,
+    required this.amount,
+    required this.initialUpiId,
+    this.onSettled,
+  });
+
+  @override
+  State<_PaymentMethodBottomSheet> createState() =>
+      _PaymentMethodBottomSheetState();
+}
+
+class _PaymentMethodBottomSheetState extends State<_PaymentMethodBottomSheet> {
+  late final TextEditingController _upiController;
+  bool _isEditingUpi = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final clean = widget.initialUpiId.trim();
+    final isDummy =
+        clean.isEmpty || clean.contains('@okaxis') || clean == 'splitico@upi';
+    _upiController = TextEditingController(text: isDummy ? '' : clean);
+    _isEditingUpi = isDummy;
+  }
+
+  @override
+  void dispose() {
+    _upiController.dispose();
+    super.dispose();
+  }
+
+  void _payWithUpi() async {
+    final upiId = _upiController.text.trim();
+    if (upiId.isEmpty || !upiId.contains('@')) {
+      ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please enter a valid UPI ID for ${widget.name} (e.g. name@oksbi)',
+          ),
+          backgroundColor: Colors.orange.shade800,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      setState(() {
+        _isEditingUpi = true;
+      });
+      return;
+    }
+
+    Navigator.of(context).pop();
+
+    bool launched = false;
+    try {
+      await UpiPaymentService.pay(
+        upiId: upiId,
+        name: widget.name,
+        amount: widget.amount,
+      );
+      launched = true;
+    } catch (e) {
+      debugPrint(e.toString());
+    }
+
+    if (!widget.parentContext.mounted) return;
+
+    if (launched) {
+      // GPay/UPI launched — ask if payment completed since we can't read the result
+      if (launched) {
+        UpiPaymentService._showPaymentConfirmationDialog(
+          context: widget.parentContext,
+          name: widget.name,
+          amount: widget.amount,
+          upiId: upiId,
+          onSettled: widget.onSettled,
+        );
+      } else {
+        UpiPaymentService._showUpiFallbackDialog(
+          context: widget.parentContext,
+          name: widget.name,
+          upiId: upiId,
+          amount: widget.amount,
+          onSettled: widget.onSettled,
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        AppSizes.xxl,
+        AppSizes.m,
+        AppSizes.xxl,
+        AppSizes.l + bottomInset,
+      ),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border.all(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color:
+                      isDarkMode
+                          ? const Color(0xFF475569)
+                          : const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            // Title: Pay Rahul ₹500
+            Text(
+              'Pay ${widget.name} ₹${widget.amount.toStringAsFixed(0)}',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: theme.colorScheme.onSurface,
+                letterSpacing: -0.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+
+            // Subtitle
+            Text(
+              'Choose payment method',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color:
+                    isDarkMode
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSizes.l),
+
+            // Editable Recipient UPI ID Card
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color:
+                    isDarkMode
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color:
+                      isDarkMode
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'RECIPIENT UPI ID',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color:
+                              isDarkMode
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _isEditingUpi = !_isEditingUpi;
+                          });
+                        },
+                        child: Text(
+                          _isEditingUpi ? 'Done' : 'Edit',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  if (_isEditingUpi)
+                    TextField(
+                      controller: _upiController,
+                      autofocus: _upiController.text.isEmpty,
+                      keyboardType: TextInputType.emailAddress,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText:
+                            "Enter ${widget.name}'s UPI ID (e.g. 9876543210@paytm)",
+                        hintStyle: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.normal,
+                          color:
+                              isDarkMode
+                                  ? const Color(0xFF64748B)
+                                  : const Color(0xFF94A3B8),
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    )
+                  else
+                    Text(
+                      _upiController.text.isNotEmpty
+                          ? _upiController.text
+                          : 'No UPI ID set (tap Edit to add)',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color:
+                            _upiController.text.isNotEmpty
+                                ? theme.colorScheme.onSurface
+                                : Colors.orange.shade400,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSizes.m),
+
+            // 1. UPI Payment Option (Triggers Android's Native App Chooser)
+            UpiPaymentService._buildPaymentOptionTile(
+              context: context,
+              icon: '💳',
+              title: 'Pay via UPI',
+              subtitle: 'Google Pay, PhonePe, Paytm, BHIM',
+              isDarkMode: isDarkMode,
+              onTap: _payWithUpi,
+            ),
+            const SizedBox(height: AppSizes.m),
+
+            // 2. Bank Transfer Option
+            UpiPaymentService._buildPaymentOptionTile(
+              context: context,
+              icon: '🏦',
+              title: 'Bank Transfer',
+              subtitle: 'Direct IMPS / NEFT transfer',
+              isDarkMode: isDarkMode,
+              onTap: () {
+                Navigator.of(context).pop();
+                UpiPaymentService._showBankTransferDialog(
+                  context: widget.parentContext,
+                  name: widget.name,
+                  amount: widget.amount,
+                  onSettled: widget.onSettled,
+                );
+              },
+            ),
+            const SizedBox(height: AppSizes.m),
+
+            // 3. Cash Option
+            UpiPaymentService._buildPaymentOptionTile(
+              context: context,
+              icon: '💵',
+              title: 'Cash',
+              subtitle: 'Settle in person with physical cash',
+              isDarkMode: isDarkMode,
+              onTap: () {
+                Navigator.of(context).pop();
+                UpiPaymentService._notifySettled(
+                  widget.parentContext,
+                  widget.name,
+                  widget.amount,
+                  'in cash 💵',
+                  widget.onSettled,
+                );
+              },
+            ),
+            const SizedBox(height: AppSizes.l),
+
+            // Cancel Button
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor:
+                    isDarkMode
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _EditableBankTransferDialog extends StatefulWidget {
@@ -720,7 +1194,8 @@ class _EditableBankTransferDialogState
   }
 
   void _copyAllDetails() {
-    final text = '''
+    final text =
+        '''
 Account Holder: ${_accountNameController.text.trim()}
 Account Number: ${_accountNumberController.text.trim()}
 IFSC Code: ${_ifscController.text.trim().toUpperCase()}
@@ -770,9 +1245,10 @@ Amount: ₹${widget.amount.toStringAsFixed(2)}
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: isDarkMode
-                      ? const Color(0xFF475569)
-                      : const Color(0xFFCBD5E1),
+                  color:
+                      isDarkMode
+                          ? const Color(0xFF475569)
+                          : const Color(0xFFCBD5E1),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -801,9 +1277,10 @@ Amount: ₹${widget.amount.toStringAsFixed(2)}
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: isDarkMode
-                              ? const Color(0xFF94A3B8)
-                              : const Color(0xFF64748B),
+                          color:
+                              isDarkMode
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -949,9 +1426,7 @@ Amount: ₹${widget.amount.toStringAsFixed(2)}
             fontSize: 11,
             fontWeight: FontWeight.w700,
             color:
-                isDarkMode
-                    ? const Color(0xFF94A3B8)
-                    : const Color(0xFF64748B),
+                isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
             letterSpacing: 0.5,
           ),
         ),
@@ -959,9 +1434,7 @@ Amount: ₹${widget.amount.toStringAsFixed(2)}
         Container(
           decoration: BoxDecoration(
             color:
-                isDarkMode
-                    ? const Color(0xFF0F172A)
-                    : const Color(0xFFF8FAFC),
+                isDarkMode ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color:

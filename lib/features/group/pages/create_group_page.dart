@@ -37,7 +37,9 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     if (widget.groupToEdit != null) {
       _nameController = TextEditingController(text: widget.groupToEdit!.name);
       _selectedType = widget.groupToEdit!.type;
-      _members.addAll(widget.groupToEdit!.members.map((m) => Map<String, dynamic>.from(m)));
+      _members.addAll(
+        widget.groupToEdit!.members.map((m) => Map<String, dynamic>.from(m)),
+      );
     } else {
       _nameController = TextEditingController(text: '');
       _selectedType = 'Travel';
@@ -50,7 +52,9 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
         _members.add({
           'name': userName,
           'initial': initial,
-          'avatarBgColor': const Color(0xFF7C3AED), // Default violet avatar color
+          'avatarBgColor': const Color(
+            0xFF7C3AED,
+          ), // Default violet avatar color
         });
       }
     }
@@ -88,7 +92,10 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                         color: Theme.of(context).cardColor,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                          color:
+                              isDarkMode
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFE2E8F0),
                         ),
                       ),
                       child: Icon(
@@ -100,7 +107,9 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                   ),
                   Expanded(
                     child: Text(
-                      widget.groupToEdit != null ? 'Edit Group' : 'Create Group',
+                      widget.groupToEdit != null
+                          ? 'Edit Group'
+                          : 'Create Group',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 20,
@@ -135,10 +144,16 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                       decoration: InputDecoration(
                         hintText: 'Enter Group Name',
                         hintStyle: TextStyle(
-                          color: isDarkMode ? const Color(0xFF64748B) : AppColors.textLight,
+                          color:
+                              isDarkMode
+                                  ? const Color(0xFF64748B)
+                                  : AppColors.textLight,
                         ),
                         filled: true,
-                        fillColor: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                        fillColor:
+                            isDarkMode
+                                ? const Color(0xFF1E293B)
+                                : const Color(0xFFF8FAFC),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: AppSizes.l,
                           vertical: AppSizes.l,
@@ -146,7 +161,10 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppSizes.radiusL),
                           borderSide: BorderSide(
-                            color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                            color:
+                                isDarkMode
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
@@ -176,7 +194,10 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                        color:
+                            isDarkMode
+                                ? const Color(0xFF64748B)
+                                : const Color(0xFF94A3B8),
                       ),
                     ),
                     const SizedBox(height: AppSizes.xl),
@@ -255,7 +276,9 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                   ),
                 ),
                 child: Text(
-                  widget.groupToEdit != null ? 'Save Changes' : 'Create Group 🎉',
+                  widget.groupToEdit != null
+                      ? 'Save Changes'
+                      : 'Create Group 🎉',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -321,25 +344,32 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
       child: Container(
         height: 108,
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary.withValues(alpha: isDarkMode ? 0.2 : 0.08)
-              : Theme.of(context).cardColor,
+          color:
+              isSelected
+                  ? AppColors.primary.withValues(alpha: isDarkMode ? 0.2 : 0.08)
+                  : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(AppSizes.radiusXL),
           border: Border.all(
-            color: isSelected
-                ? AppColors.primary
-                : (isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+            color:
+                isSelected
+                    ? AppColors.primary
+                    : (isDarkMode
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
             width: isSelected ? 2 : 1,
           ),
-          boxShadow: isSelected
-              ? []
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDarkMode ? 0.2 : 0.02),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+          boxShadow:
+              isSelected
+                  ? []
+                  : [
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: isDarkMode ? 0.2 : 0.02,
+                      ),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -351,9 +381,12 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: isSelected
-                    ? AppColors.primary
-                    : (isDarkMode ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+                color:
+                    isSelected
+                        ? AppColors.primary
+                        : (isDarkMode
+                            ? const Color(0xFFCBD5E1)
+                            : const Color(0xFF475569)),
               ),
             ),
           ],
@@ -423,7 +456,10 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: isDarkMode ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                  color:
+                      isDarkMode
+                          ? const Color(0xFFCBD5E1)
+                          : const Color(0xFF334155),
                 ),
               ),
               if (hasUpi)
@@ -439,6 +475,20 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
           ),
           const SizedBox(width: AppSizes.xs + 2),
           GestureDetector(
+            onTap: () => _showEditUpiDialog(member),
+            child: Icon(
+              hasUpi ? Icons.edit_rounded : Icons.add_card_rounded,
+              color:
+                  hasUpi
+                      ? AppColors.primary
+                      : (isDarkMode
+                          ? const Color(0xFF64748B)
+                          : const Color(0xFF94A3B8)),
+              size: 15,
+            ),
+          ),
+          const SizedBox(width: AppSizes.xs),
+          GestureDetector(
             onTap: () {
               setState(() {
                 _members.remove(member);
@@ -446,13 +496,179 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
             },
             child: Icon(
               Icons.close_rounded,
-              color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+              color:
+                  isDarkMode
+                      ? const Color(0xFF64748B)
+                      : const Color(0xFF94A3B8),
               size: 16,
             ),
           ),
         ],
       ),
     );
+  }
+
+  void _showEditUpiDialog(Map<String, dynamic> member) {
+    final upiController = TextEditingController(
+      text: member['upiId']?.toString().trim() ?? '',
+    );
+    final memberName = member['name'] as String;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      builder: (ctx) {
+        final isDarkMode = Theme.of(ctx).brightness == Brightness.dark;
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
+          child: Dialog(
+            backgroundColor: Theme.of(ctx).cardColor,
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 24,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Edit UPI ID',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(ctx).colorScheme.onSurface,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Set a UPI ID for $memberName to enable 1-tap payments.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color:
+                          isDarkMode
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color:
+                          isDarkMode
+                              ? const Color(0xFF1E293B)
+                              : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color:
+                            isDarkMode
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.qr_code_2_rounded,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: upiController,
+                            autofocus: true,
+                            decoration: InputDecoration(
+                              border: InputBorder.none,
+                              hintText:
+                                  'e.g. ${memberName.toLowerCase().replaceAll(' ', '')}@upi',
+                              hintStyle: TextStyle(
+                                color:
+                                    isDarkMode
+                                        ? const Color(0xFF64748B)
+                                        : AppColors.textLight,
+                                fontSize: 14,
+                              ),
+                            ),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(ctx).colorScheme.onSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor:
+                                isDarkMode
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF64748B),
+                            side: BorderSide(
+                              color:
+                                  isDarkMode
+                                      ? const Color(0xFF334155)
+                                      : const Color(0xFFE2E8F0),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final newUpi = upiController.text.trim();
+                            setState(() {
+                              member['upiId'] =
+                                  newUpi.isNotEmpty ? newUpi : null;
+                            });
+                            Navigator.of(ctx).pop();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Save',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    upiController.dispose();
   }
 
   Widget _buildAddMemberButton() {
@@ -652,7 +868,10 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
             },
             child: Icon(
               Icons.close_rounded,
-              color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+              color:
+                  isDarkMode
+                      ? const Color(0xFF64748B)
+                      : const Color(0xFF94A3B8),
               size: 18,
             ),
           ),
@@ -687,17 +906,26 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                color:
+                    isDarkMode
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
               ),
             ),
             const SizedBox(height: 18),
 
             Container(
               decoration: BoxDecoration(
-                color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                color:
+                    isDarkMode
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  color:
+                      isDarkMode
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
                 ),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -717,7 +945,10 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                         border: InputBorder.none,
                         hintText: 'Name (e.g. Rahul)',
                         hintStyle: TextStyle(
-                          color: isDarkMode ? const Color(0xFF64748B) : AppColors.textLight,
+                          color:
+                              isDarkMode
+                                  ? const Color(0xFF64748B)
+                                  : AppColors.textLight,
                           fontSize: 14,
                         ),
                       ),
@@ -736,10 +967,16 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
 
             Container(
               decoration: BoxDecoration(
-                color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                color:
+                    isDarkMode
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  color:
+                      isDarkMode
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
                 ),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -758,7 +995,10 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                         border: InputBorder.none,
                         hintText: 'UPI ID: rahul@upi (optional)',
                         hintStyle: TextStyle(
-                          color: isDarkMode ? const Color(0xFF64748B) : AppColors.textLight,
+                          color:
+                              isDarkMode
+                                  ? const Color(0xFF64748B)
+                                  : AppColors.textLight,
                           fontSize: 14,
                         ),
                       ),
@@ -779,7 +1019,9 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed:
-                    _nameController.text.trim().isEmpty ? null : _addCurrentInput,
+                    _nameController.text.trim().isEmpty
+                        ? null
+                        : _addCurrentInput,
                 icon: const Icon(Icons.add_rounded, size: 18),
                 label: const Text(
                   'Add to List',

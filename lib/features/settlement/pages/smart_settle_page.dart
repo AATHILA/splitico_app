@@ -97,11 +97,32 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
     int rawCount = 0;
     int colorIdx = 0;
 
+    // Helper to find real UPI ID from any group member list
+    String findUpiId(String personName) {
+      for (var g in groups) {
+        for (var m in g.members) {
+          final mName = _normalizeName(m['name'] as String, currentUserName);
+          if (mName.toLowerCase() == personName.toLowerCase()) {
+            final upi = m['upiId']?.toString().trim();
+            if (upi != null && upi.isNotEmpty) {
+              return upi;
+            }
+          }
+        }
+      }
+      return '';
+    }
+
     // 1. Extract member metadata
     for (var g in groups) {
       for (var member in g.members) {
         final rawName = member['name'] as String;
         final normalizedName = _normalizeName(rawName, currentUserName);
+        final rawUpi = member['upiId']?.toString().trim();
+        final effectiveUpi = (rawUpi != null && rawUpi.isNotEmpty)
+            ? rawUpi
+            : findUpiId(normalizedName);
+
         if (!metadataOut.containsKey(normalizedName)) {
           metadataOut[normalizedName] = {
             'initial':
@@ -113,9 +134,7 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
               colorIdx++,
               member['avatarBgColor'] ?? member['color'],
             ),
-            'upiId':
-                member['upiId'] ??
-                '${normalizedName.toLowerCase().replaceAll(' ', '')}@okaxis',
+            'upiId': effectiveUpi,
           };
         }
       }
@@ -133,7 +152,7 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
           metadataOut[payer] = {
             'initial': payer.isNotEmpty ? payer[0].toUpperCase() : '?',
             'color': _getAvatarColor(colorIdx++, null),
-            'upiId': '${payer.toLowerCase().replaceAll(' ', '')}@okaxis',
+            'upiId': findUpiId(payer),
           };
         }
 
@@ -147,7 +166,7 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
               'initial':
                   memberName.isNotEmpty ? memberName[0].toUpperCase() : '?',
               'color': _getAvatarColor(colorIdx++, splitMember['color']),
-              'upiId': '${memberName.toLowerCase().replaceAll(' ', '')}@okaxis',
+              'upiId': findUpiId(memberName),
             };
           }
 
@@ -206,8 +225,13 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
               'initial':
                   creditor.isNotEmpty ? creditor[0].toUpperCase() : '?',
               'color': const Color(0xFF4C49ED),
-              'upiId': '${creditor.toLowerCase().replaceAll(' ', '')}@okaxis',
+              'upiId': findUpiId(creditor),
             };
+
+        final creditorUpiId =
+            (creditorMeta['upiId']?.toString().trim().isNotEmpty ?? false)
+                ? creditorMeta['upiId'].toString().trim()
+                : findUpiId(creditor);
 
         transactions.add(
           SmartSettlementTransaction(
@@ -219,9 +243,7 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
             toInitial: creditorMeta['initial'],
             toColor: creditorMeta['color'],
             amount: settledAmount,
-            upiId:
-                creditorMeta['upiId'] ??
-                '${creditor.toLowerCase().replaceAll(' ', '')}@okaxis',
+            upiId: creditorUpiId,
           ),
         );
       }
@@ -810,7 +832,7 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        UpiPaymentService.showPaymentMethodBottomSheet(
+                        UpiPaymentService.directPay(
                           context: context,
                           name: toName,
                           amount: rawAmount,

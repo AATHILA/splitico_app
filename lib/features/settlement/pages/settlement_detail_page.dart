@@ -928,11 +928,11 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
             flex: 6,
             child: ElevatedButton.icon(
               onPressed: () {
-                UpiPaymentService.showPaymentMethodBottomSheet(
+                UpiPaymentService.directPay(
                   context: context,
                   name: widget.memberName,
                   amount: amount,
-                  upiId: _memberUpiId ?? 'splitico@upi',
+                  upiId: _memberUpiId ?? '',
                   onSettled: () {
                     setState(() {
                       _isSettled = true;

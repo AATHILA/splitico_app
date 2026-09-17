@@ -20,7 +20,13 @@ class GroupModel {
     final serializedMembers = members.map((m) {
       final Map<String, dynamic> copy = Map.from(m);
       if (copy['avatarBgColor'] is Color) {
-        copy['avatarBgColor'] = (copy['avatarBgColor'] as Color).value;
+        final color = copy['avatarBgColor'] as Color;
+        // ignore: deprecated_member_use
+        copy['avatarBgColor'] = color.toARGB32();
+      }
+      // Explicitly keep upiId — null is valid and must be preserved
+      if (!copy.containsKey('upiId')) {
+        copy['upiId'] = null;
       }
       return copy;
     }).toList();
@@ -42,11 +48,15 @@ class GroupModel {
     final parsedMembers = rawMembers.map((m) {
       final Map<String, dynamic> copy = Map.from(m);
       if (copy['avatarBgColor'] is int) {
+        // ignore: deprecated_member_use
         copy['avatarBgColor'] = Color(copy['avatarBgColor'] as int);
       } else if (copy['avatarBgColor'] is String) {
         final hexCode = (copy['avatarBgColor'] as String).replaceAll('#', '');
+        // ignore: deprecated_member_use
         copy['avatarBgColor'] = Color(int.parse('FF$hexCode', radix: 16));
       }
+      // Ensure upiId key always exists (may be absent if saved as null by Supabase)
+      copy.putIfAbsent('upiId', () => null);
       return copy;
     }).toList();
 

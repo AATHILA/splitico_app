@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/models/group.dart';
 
@@ -22,22 +23,29 @@ class GroupRepository {
     if (currentUser != null) {
       groupData['created_by'] = currentUser.id; // Explicitly assign owner
     }
+    // DEBUG: print members being saved
+    debugPrint('[GroupRepo] Saving members: ${groupData['members']}');
     final response = await _supabase
         .from('groups')
         .insert(groupData)
         .select()
         .single();
+    debugPrint('[GroupRepo] Saved response members: ${response['members']}');
     return GroupModel.fromJson(response);
   }
 
   // Update a group
   Future<GroupModel> updateGroup(String groupId, GroupModel group) async {
+    final groupData = group.toJson();
+    // DEBUG: print members being updated
+    debugPrint('[GroupRepo] Updating members: ${groupData['members']}');
     final response = await _supabase
         .from('groups')
-        .update(group.toJson())
+        .update(groupData)
         .eq('id', groupId)
         .select()
         .single();
+    debugPrint('[GroupRepo] Updated response members: ${response['members']}');
     return GroupModel.fromJson(response);
   }
 

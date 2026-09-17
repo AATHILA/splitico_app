@@ -10,7 +10,6 @@ import 'package:splitico/features/group/bloc/group_bloc.dart';
 import 'package:splitico/features/group/bloc/group_state.dart';
 import 'package:splitico/core/theme/theme_cubit.dart';
 
-
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -70,7 +69,6 @@ class _ProfilePageState extends State<ProfilePage> {
               _buildHeaderWithStats(context, topPadding),
 
               const SizedBox(height: 40), // Spacing for overlapping card
-
               // 2. Settings Card (Dark Mode, Currency, Notifications)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSizes.xxl),
@@ -115,11 +113,17 @@ class _ProfilePageState extends State<ProfilePage> {
 
           // Nicely capitalize display name
           if (displayName.isNotEmpty) {
-            displayName = displayName[0].toUpperCase() + displayName.substring(1);
+            displayName =
+                displayName[0].toUpperCase() + displayName.substring(1);
           }
 
           // Compute initials
-          final parts = displayName.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+          final parts =
+              displayName
+                  .trim()
+                  .split(RegExp(r'\s+'))
+                  .where((p) => p.isNotEmpty)
+                  .toList();
           if (parts.length > 1) {
             initials = (parts[0][0] + parts[1][0]).toUpperCase();
           } else if (displayName.isNotEmpty) {
@@ -146,9 +150,10 @@ class _ProfilePageState extends State<ProfilePage> {
               }
             }
 
-            final trackedAmountStr = isLoading
-                ? '...'
-                : '$_currencySymbol${totalTrackedAmount.toStringAsFixed(totalTrackedAmount % 1 == 0 ? 0 : 2)}';
+            final trackedAmountStr =
+                isLoading
+                    ? '...'
+                    : '$_currencySymbol${totalTrackedAmount.toStringAsFixed(totalTrackedAmount % 1 == 0 ? 0 : 2)}';
 
             final groupCountStr = isLoading ? '...' : groupCount.toString();
             final expenseCountStr = isLoading ? '...' : expenseCount.toString();
@@ -192,16 +197,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       // App Bar Title & Subtitle Mock Status Row
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          const Text(
-                            '9:41',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
-                          ),
                           IconButton(
                             icon: const Icon(Icons.settings_rounded),
                             color: Colors.white,
@@ -215,7 +212,10 @@ class _ProfilePageState extends State<ProfilePage> {
                       Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 4),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            width: 4,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.15),
@@ -292,7 +292,12 @@ class _ProfilePageState extends State<ProfilePage> {
                         _buildStatDivider(context),
                         _buildStatItem(context, 'Expenses', expenseCountStr),
                         _buildStatDivider(context),
-                        _buildStatItem(context, 'Tracked Amount', trackedAmountStr, isAmount: true),
+                        _buildStatItem(
+                          context,
+                          'Tracked Amount',
+                          trackedAmountStr,
+                          isAmount: true,
+                        ),
                       ],
                     ),
                   ),
@@ -305,7 +310,12 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildStatItem(BuildContext context, String label, String value, {bool isAmount = false}) {
+  Widget _buildStatItem(
+    BuildContext context,
+    String label,
+    String value, {
+    bool isAmount = false,
+  }) {
     final onSurface = Theme.of(context).colorScheme.onSurface;
     return Expanded(
       child: Column(
@@ -366,7 +376,8 @@ class _ProfilePageState extends State<ProfilePage> {
             context: context,
             icon: Icons.dark_mode_rounded,
             iconColor: const Color(0xFFFFA726), // warm yellow
-            iconBgColor: isDarkMode ? const Color(0xFF334155) : const Color(0xFFFFF7ED),
+            iconBgColor:
+                isDarkMode ? const Color(0xFF334155) : const Color(0xFFFFF7ED),
             title: 'Dark Mode',
             trailing: Switch.adaptive(
               value: isDarkMode,
@@ -383,7 +394,8 @@ class _ProfilePageState extends State<ProfilePage> {
             context: context,
             icon: Icons.sync_rounded,
             iconColor: AppColors.primary,
-            iconBgColor: isDarkMode ? const Color(0xFF312E81) : const Color(0xFFEEF2FF),
+            iconBgColor:
+                isDarkMode ? const Color(0xFF312E81) : const Color(0xFFEEF2FF),
             title: 'Currency',
             trailing: PopupMenuButton<String>(
               color: Theme.of(context).cardColor,
@@ -434,7 +446,8 @@ class _ProfilePageState extends State<ProfilePage> {
             context: context,
             icon: Icons.notifications_rounded,
             iconColor: const Color(0xFFF59E0B), // notification orange
-            iconBgColor: isDarkMode ? const Color(0xFF451A03) : const Color(0xFFFEF3C7),
+            iconBgColor:
+                isDarkMode ? const Color(0xFF451A03) : const Color(0xFFFEF3C7),
             title: 'Notifications',
             trailing: Switch.adaptive(
               value: _notificationsEnabled,
@@ -474,7 +487,8 @@ class _ProfilePageState extends State<ProfilePage> {
             context: context,
             icon: Icons.lock_rounded,
             iconColor: const Color(0xFFFFA726), // amber/orange lock
-            iconBgColor: isDarkMode ? const Color(0xFF334155) : const Color(0xFFFEF3C7),
+            iconBgColor:
+                isDarkMode ? const Color(0xFF334155) : const Color(0xFFFEF3C7),
             title: 'Privacy & Security',
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -496,7 +510,8 @@ class _ProfilePageState extends State<ProfilePage> {
             context: context,
             icon: Icons.help_outline_rounded,
             iconColor: const Color(0xFFEF4444), // red question
-            iconBgColor: isDarkMode ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
+            iconBgColor:
+                isDarkMode ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
             title: 'Help & Support',
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -542,11 +557,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 color: iconBgColor,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: 20,
-              ),
+              child: Icon(icon, color: iconColor, size: 20),
             ),
             const SizedBox(width: AppSizes.l),
 
@@ -573,10 +584,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildItemDivider(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.l),
-      child: Divider(
-        height: 1,
-        color: Theme.of(context).dividerColor,
-      ),
+      child: Divider(height: 1, color: Theme.of(context).dividerColor),
     );
   }
 
@@ -587,27 +595,24 @@ class _ProfilePageState extends State<ProfilePage> {
       },
       style: OutlinedButton.styleFrom(
         foregroundColor: const Color(0xFFEF4444), // Red text
-        backgroundColor: isDarkMode
-            ? const Color(0xFFEF4444).withValues(alpha: 0.12)
-            : const Color(0xFFFEF2F2), // Soft red background
+        backgroundColor:
+            isDarkMode
+                ? const Color(0xFFEF4444).withValues(alpha: 0.12)
+                : const Color(0xFFFEF2F2), // Soft red background
         side: BorderSide(
-          color: isDarkMode
-              ? const Color(0xFFEF4444).withValues(alpha: 0.25)
-              : const Color(0xFFFEE2E2),
+          color:
+              isDarkMode
+                  ? const Color(0xFFEF4444).withValues(alpha: 0.25)
+                  : const Color(0xFFFEE2E2),
           width: 1.5,
         ),
         minimumSize: const Size(double.infinity, 54),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         elevation: 0,
       ),
       child: const Text(
         'Sign Out',
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w800,
-        ),
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
       ),
     );
   }
