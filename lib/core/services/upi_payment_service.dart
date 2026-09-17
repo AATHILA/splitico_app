@@ -101,31 +101,32 @@ class UpiPaymentService {
     required String name,
     required double amount,
     String? note,
-    String? txnRef,
+  
   }) {
     final cleanUpiId = upiId.trim();
     final cleanName = name.trim();
     final cleanNote = (note ?? 'Splitico Settlement').trim();
     final formattedAmount = amount.toStringAsFixed(2);
 
-    final uriBuffer = StringBuffer(
-      'upi://pay'
-      '?pa=$cleanUpiId'
-      '&pn=${Uri.encodeComponent(cleanName)}'
-      '&am=$formattedAmount'
-      '&cu=INR'
-      '&tn=${Uri.encodeComponent(cleanNote)}',
-    );
+    final uriBuffer = StringBuffer()
+    ..write('upi://pay')
+    ..write('?pa=${Uri.encodeComponent(cleanUpiId)}')
+    ..write('&pn=${Uri.encodeComponent(cleanName)}')
+    ..write('&am=$formattedAmount')
+    ..write('&cu=INR')
+    ..write('&tn=${Uri.encodeComponent(cleanNote)}');
+ return uriBuffer.toString();
 
     // NPCI UPI Guideline: 'tr' (Transaction Ref ID) is strictly for Merchant (P2M) transactions.
     // For P2P peer-to-peer payments, passing a custom 'tr' causes UPI apps (GPay, PhonePe, Paytm)
     // to fail with "Invalid Transaction Reference" because the payee VPA is a personal account.
-    if (txnRef != null && txnRef.trim().isNotEmpty) {
-      uriBuffer.write('&tr=${Uri.encodeComponent(txnRef.trim())}');
+    
+    //if (txnRef != null && txnRef.trim().isNotEmpty) {
+     // uriBuffer.write('&tr=${Uri.encodeComponent(txnRef.trim())}');
     }
 
-    return uriBuffer.toString();
-  }
+    
+  
 
   /// Builds a standard NPCI compliant P2P UPI payment Uri object.
   static Uri buildUri({
@@ -167,7 +168,7 @@ class UpiPaymentService {
       );
       if (result == true) return true;
     } catch (e) {
-      debugPrint('Native MethodChannel launchUpiChooser error: $e');
+      debugPrint('Native UPI launch failed: $e');
     }
 
     // 2. Fallback attempt via url_launcher
@@ -181,17 +182,12 @@ class UpiPaymentService {
         if (launched) return true;
       }
 
-      final launchedDirectly = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-      if (launchedDirectly) return true;
     } catch (e) {
-      debugPrint('Error launching UPI URI via url_launcher: $e');
+      debugPrint('UPI url_launcher failed: $e');
     }
 
     throw Exception(
-      'No UPI app (GPay, PhonePe, Paytm, BHIM) found on this device.',
+      'No supported UPI app is available on this device.',
     );
   }
 
