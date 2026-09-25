@@ -26,7 +26,7 @@ class GroupBloc extends Bloc<GroupEvent, GroupState> {
         final newGroup = await _groupRepository.createGroup(event.group);
         final currentState = state;
         if (currentState is GroupsLoaded) {
-          emit(GroupsLoaded(List.from(currentState.groups)..add(newGroup)));
+           emit(GroupsLoaded([newGroup, ...currentState.groups]));
         } else {
           emit(GroupsLoaded([newGroup]));
         }

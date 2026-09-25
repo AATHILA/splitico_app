@@ -9,6 +9,7 @@ import 'package:splitico/features/auth/presentation/login_screen.dart';
 import 'package:splitico/features/group/bloc/group_bloc.dart';
 import 'package:splitico/features/group/bloc/group_state.dart';
 import 'package:splitico/core/theme/theme_cubit.dart';
+import 'my_qr_code_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -371,6 +372,28 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       child: Column(
         children: [
+          // Row 0: My UPI & QR Code
+          _buildSettingsRow(
+            context: context,
+            icon: Icons.qr_code_2_rounded,
+            iconColor: AppColors.primary,
+            iconBgColor:
+                isDarkMode ? const Color(0xFF312E81) : const Color(0xFFEEF2FF),
+            title: 'My UPI & QR Code',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (ctx) => const MyQrCodePage(),
+                ),
+              );
+            },
+            trailing: Icon(
+              Icons.chevron_right_rounded,
+              color: onSurface.withValues(alpha: 0.4),
+            ),
+          ),
+          _buildItemDivider(context),
+
           // Row 1: Dark Mode
           _buildSettingsRow(
             context: context,

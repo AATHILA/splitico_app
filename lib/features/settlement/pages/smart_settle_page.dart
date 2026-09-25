@@ -3,11 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/models/group.dart';
+import '../../../core/services/settlement_storage_service.dart';
 import '../../../core/services/upi_payment_service.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_state.dart';
 import '../../group/bloc/group_bloc.dart';
 import '../../group/bloc/group_state.dart';
+import 'qr_scanner_page.dart';
 
 class SmartSettlementTransaction {
   final String id;
@@ -45,16 +47,40 @@ class SmartSettlePage extends StatefulWidget {
 class _SmartSettlePageState extends State<SmartSettlePage> {
   final Set<String> _settledCardIds = {};
 
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedSettlements();
+  }
+
+  Future<void> _loadSavedSettlements() async {
+    final saved = await SettlementStorageService.getSettledIds();
+    if (mounted) {
+      setState(() {
+        _settledCardIds.addAll(saved);
+      });
+    }
+  }
+
   void _handleSettled(String id, String toName, String amount) {
     setState(() {
       _settledCardIds.add(id);
     });
+    final numAmount =
+        double.tryParse(amount.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+    SettlementStorageService.markSettled(
+      id,
+      settled: true,
+      toName: toName,
+      amount: numAmount,
+    );
   }
 
   void _handleUnsettle(String id, String toName) {
     setState(() {
       _settledCardIds.remove(id);
     });
+    SettlementStorageService.markSettled(id, settled: false);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Settlement with $toName unmarked.'),
@@ -416,6 +442,45 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
                   letterSpacing: -0.5,
                 ),
                 overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: AppSizes.s),
+            // QR Scanner Button
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (ctx) => const QrScannerPage(),
+                  ),
+                );
+              },
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color:
+                        isDarkMode
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: isDarkMode ? 0.2 : 0.02,
+                      ),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.qr_code_scanner_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
               ),
             ),
           ],
@@ -832,7 +897,7 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        UpiPaymentService.directPay(
+                        UpiPaymentService.showPaymentMethodBottomSheet(
                           context: context,
                           name: toName,
                           amount: rawAmount,
@@ -865,14 +930,7 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
                   // 2. Mark Paid Button (Outlined in AppColors.primary Blue)
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        UpiPaymentService.showMarkPaidBottomSheet(
-                          context: context,
-                          name: toName,
-                          amount: rawAmount,
-                          onSettled: () => _handleSettled(id, toName, amount),
-                        );
-                      },
+                      onPressed: () => _handleSettled(id, toName, amount),
                       icon: const Icon(
                         Icons.check_circle_outline_rounded,
                         size: 16,
@@ -910,14 +968,7 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
             else
               // If current user is NOT the payer: show only [ Mark Paid ] button (Full width)
               OutlinedButton.icon(
-                onPressed: () {
-                  UpiPaymentService.showMarkPaidBottomSheet(
-                    context: context,
-                    name: toName,
-                    amount: rawAmount,
-                    onSettled: () => _handleSettled(id, toName, amount),
-                  );
-                },
+                onPressed: () => _handleSettled(id, toName, amount),
                 icon: const Icon(
                   Icons.check_circle_outline_rounded,
                   size: 16,

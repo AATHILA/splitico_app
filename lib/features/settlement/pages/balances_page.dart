@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/models/group.dart';
+import '../../../core/services/settlement_storage_service.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_state.dart';
 import '../../group/bloc/group_bloc.dart';
@@ -35,143 +36,162 @@ class BalancesPage extends StatelessWidget {
               groups = groupState.groups;
             }
 
-            final Map<String, double> memberBalances = {};
-            final Map<String, Map<String, dynamic>> memberMetadata = {};
+            return ValueListenableBuilder<Set<String>>(
+              valueListenable: SettlementStorageService.settledIdsNotifier,
+              builder: (context, settledIds, _) {
+                final Map<String, double> memberBalances = {};
+                final Map<String, Map<String, dynamic>> memberMetadata = {};
 
-            for (var group in groups) {
-              for (var member in group.members) {
-                final name = member['name'] as String;
-                if (name.toLowerCase() != 'you' &&
-                    name.toLowerCase() != displayName.toLowerCase()) {
-                  memberMetadata.putIfAbsent(
-                    name,
-                    () => {
-                      'initial':
-                          member['initial'] ??
-                          (name.isNotEmpty ? name[0].toUpperCase() : '?'),
-                      'color':
-                          member['avatarBgColor'] ??
-                          member['color'] ??
-                          Colors.deepPurple,
-                    },
-                  );
-                }
-              }
-              for (var expense in group.expenses) {
-                final splitMembers =
-                    expense.splitBetween
-                        .where((m) => m['selected'] == true)
-                        .toList();
-                if (splitMembers.isEmpty) continue;
-                final individualShare = expense.amount / splitMembers.length;
-                final payer = expense.paidBy;
-                final isPayerMe =
-                    payer.toLowerCase() == 'you' ||
-                    payer.toLowerCase() == displayName.toLowerCase();
-                if (isPayerMe) {
-                  // If you paid, other split members owe you
-                  for (var splitMember in splitMembers) {
-                    final memberName = splitMember['name'] as String;
-                    if (memberName.toLowerCase() != 'you' &&
-                        memberName.toLowerCase() != displayName.toLowerCase()) {
-                      memberBalances[memberName] =
-                          (memberBalances[memberName] ?? 0.0) + individualShare;
+                for (var group in groups) {
+                  for (var member in group.members) {
+                    final name = member['name'] as String;
+                    if (name.toLowerCase() != 'you' &&
+                        name.toLowerCase() != displayName.toLowerCase()) {
+                      memberMetadata.putIfAbsent(
+                        name,
+                        () => {
+                          'initial':
+                              member['initial'] ??
+                              (name.isNotEmpty ? name[0].toUpperCase() : '?'),
+                          'color':
+                              member['avatarBgColor'] ??
+                              member['color'] ??
+                              Colors.deepPurple,
+                        },
+                      );
                     }
                   }
-                } else {
-                  // If someone else paid, check if you owe them
-                  final isMeInSplit = splitMembers.any(
-                    (m) =>
-                        m['name'].toString().toLowerCase() == 'you' ||
-                        m['name'].toString().toLowerCase() ==
-                            displayName.toLowerCase(),
-                  );
+                  for (var expense in group.expenses) {
+                    final splitMembers =
+                        expense.splitBetween
+                            .where((m) => m['selected'] == true)
+                            .toList();
+                    if (splitMembers.isEmpty) continue;
+                    final individualShare =
+                        expense.amount / splitMembers.length;
+                    final payer = expense.paidBy;
+                    final isPayerMe =
+                        payer.toLowerCase() == 'you' ||
+                        payer.toLowerCase() == displayName.toLowerCase();
+                    if (isPayerMe) {
+                      // If you paid, other split members owe you
+                      for (var splitMember in splitMembers) {
+                        final memberName = splitMember['name'] as String;
+                        if (memberName.toLowerCase() != 'you' &&
+                            memberName.toLowerCase() !=
+                                displayName.toLowerCase()) {
+                          memberBalances[memberName] =
+                              (memberBalances[memberName] ?? 0.0) +
+                              individualShare;
+                        }
+                      }
+                    } else {
+                      // If someone else paid, check if you owe them
+                      final isMeInSplit = splitMembers.any(
+                        (m) =>
+                            m['name'].toString().toLowerCase() == 'you' ||
+                            m['name'].toString().toLowerCase() ==
+                                displayName.toLowerCase(),
+                      );
 
-                  if (isMeInSplit) {
-                    memberBalances[payer] =
-                        (memberBalances[payer] ?? 0.0) - individualShare;
-                  }
-                  if (payer.toLowerCase() != 'you' &&
-                    payer.toLowerCase() != displayName.toLowerCase()) {
-                    memberMetadata.putIfAbsent(
-                      payer,
-                      () => {
-                        'initial':
-                            payer.isNotEmpty ? payer[0].toUpperCase() : '?',
-                        'color': Colors.grey,
-                      },
-                    );
+                      if (isMeInSplit) {
+                        memberBalances[payer] =
+                            (memberBalances[payer] ?? 0.0) - individualShare;
+                      }
+                      if (payer.toLowerCase() != 'you' &&
+                          payer.toLowerCase() != displayName.toLowerCase()) {
+                        memberMetadata.putIfAbsent(
+                          payer,
+                          () => {
+                            'initial':
+                                payer.isNotEmpty ? payer[0].toUpperCase() : '?',
+                            'color': Colors.grey,
+                          },
+                        );
+                      }
+                    }
                   }
                 }
-              }
-            }
 
-            // Calculate totals
-            double totalYouOwe = 0.0;
-            double totalOwedToYou = 0.0;
+                // Calculate totals
+                double totalYouOwe = 0.0;
+                double totalOwedToYou = 0.0;
+                int pendingSettlementsCount = 0;
 
-            memberBalances.forEach((member, balance) {
-              if (balance > 0.01) {
-                totalOwedToYou += balance;
-              } else if (balance < -0.01) {
-                totalYouOwe += balance.abs();
-              }
-            });
-            final netBalance = totalOwedToYou - totalYouOwe;
-            final pendingSettlementsCount =
-                memberBalances.values.where((b) => b.abs() > 0.01).length;
+                memberBalances.forEach((member, balance) {
+                  final isSettled =
+                      SettlementStorageService.isMemberSettledSync(
+                        currentUserName: displayName,
+                        memberName: member,
+                      );
+                  if (balance > 0.01) {
+                    if (!isSettled) {
+                      totalOwedToYou += balance;
+                      pendingSettlementsCount++;
+                    }
+                  } else if (balance < -0.01) {
+                    if (!isSettled) {
+                      totalYouOwe += balance.abs();
+                      pendingSettlementsCount++;
+                    }
+                  }
+                });
 
-            return Scaffold(
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              body: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    AppSizes.xxl,
-                    topPadding > 0 ? 0 : AppSizes.m,
-                    AppSizes.xxl,
-                    0,
+                final netBalance = totalOwedToYou - totalYouOwe;
+
+                return Scaffold(
+                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                  body: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        AppSizes.xxl,
+                        topPadding > 0 ? 0 : AppSizes.m,
+                        AppSizes.xxl,
+                        0,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // 1. Top status & Title header
+                          _buildHeader(context),
+                          const SizedBox(height: AppSizes.l),
+
+                          // 2. Net Balance Gradient Card
+                          _buildNetBalanceCard(
+                            netBalance: netBalance,
+                            groupsCount: groups.length,
+                            pendingCount: pendingSettlementsCount,
+                          ),
+                          const SizedBox(height: AppSizes.xxl),
+
+                          // 3. Section Title
+                          Text(
+                            'Who owes whom',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: AppSizes.m),
+
+                          // 4. Balances List
+                          Expanded(
+                            child: _buildBalancesList(
+                              context: context,
+                              memberBalances: memberBalances,
+                              memberMetadata: memberMetadata,
+                              groups: groups,
+                              displayName: displayName,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // 1. Top status & Title header
-                      _buildHeader(context),
-                      const SizedBox(height: AppSizes.l),
-
-                      // 2. Net Balance Gradient Card
-                      _buildNetBalanceCard(
-                        netBalance: netBalance,
-                        groupsCount: groups.length,
-                        pendingCount: pendingSettlementsCount,
-                      ),
-                      const SizedBox(height: AppSizes.xxl),
-
-                      // 3. Section Title
-                      Text(
-                        'Who owes whom',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: AppSizes.m),
-
-                      // 4. Balances List
-                      Expanded(
-                        child: _buildBalancesList(
-                          context: context,
-                          memberBalances: memberBalances,
-                          memberMetadata: memberMetadata,
-                          groups: groups,
-                          displayName: displayName,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+                );
+              },
             );
           },
         );
@@ -322,8 +342,15 @@ class BalancesPage extends StatelessWidget {
     memberBalances.forEach((member, balance) {
       if (balance.abs() < 0.01) return; // skip zero balances
 
+      final isSettled = SettlementStorageService.isMemberSettledSync(
+        currentUserName: displayName,
+        memberName: member,
+      );
+
       final isOwed = balance > 0.01;
-      final status = isOwed ? 'owes you' : 'you owe';
+      final status = isSettled
+          ? 'settled'
+          : (isOwed ? 'owes you' : 'you owe');
 
       final metadata = memberMetadata[member] ?? {};
       final initial =
@@ -331,14 +358,26 @@ class BalancesPage extends StatelessWidget {
           (member.isNotEmpty ? member[0].toUpperCase() : '?');
       final avatarColor = metadata['color'] as Color? ?? Colors.deepPurple;
 
-      final badgeBg = isOwed
-          ? (isDarkMode ? const Color(0xFF064E3B).withValues(alpha: 0.5) : const Color(0xFFECFDF5))
-          : (isDarkMode ? const Color(0xFF7F1D1D).withValues(alpha: 0.5) : const Color(0xFFFEF2F2));
-      final badgeText = isOwed
+      final badgeBg = isSettled
+          ? (isDarkMode
+              ? const Color(0xFF1E3A8A).withValues(alpha: 0.4)
+              : const Color(0xFFEFF6FF))
+          : isOwed
+          ? (isDarkMode
+              ? const Color(0xFF064E3B).withValues(alpha: 0.5)
+              : const Color(0xFFECFDF5))
+          : (isDarkMode
+              ? const Color(0xFF7F1D1D).withValues(alpha: 0.5)
+              : const Color(0xFFFEF2F2));
+      final badgeText = isSettled
+          ? AppColors.primary
+          : isOwed
           ? (isDarkMode ? const Color(0xFF34D399) : const Color(0xFF059669))
           : (isDarkMode ? const Color(0xFFF87171) : const Color(0xFFEF4444));
-      final amountSign = isOwed ? '→' : '←';
-      final amountText = '₹${balance.abs().toStringAsFixed(0)} $amountSign';
+      final amountSign = isSettled ? '✓' : (isOwed ? '→' : '←');
+      final amountText = isSettled
+          ? 'Paid ✓'
+          : '₹${balance.abs().toStringAsFixed(0)} $amountSign';
 
       balanceData.add({
         'name': member,
@@ -348,6 +387,7 @@ class BalancesPage extends StatelessWidget {
         'badgeBg': badgeBg,
         'badgeText': badgeText,
         'amount': amountText,
+        'isSettled': isSettled,
       });
     });
 

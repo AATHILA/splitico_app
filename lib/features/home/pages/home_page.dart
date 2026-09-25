@@ -20,6 +20,10 @@ import 'package:splitico/features/group/pages/group_details_page.dart';
 import 'package:splitico/features/settlement/pages/balances_page.dart';
 import 'package:splitico/features/analytics/pages/analytics_page.dart';
 import 'package:splitico/features/profile/pages/profile_page.dart';
+import 'package:splitico/features/profile/pages/my_qr_code_page.dart';
+import 'package:splitico/features/settlement/pages/qr_scanner_page.dart';
+import 'package:splitico/core/services/payment_reminder_service.dart';
+import 'package:splitico/core/services/settlement_storage_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -127,7 +131,7 @@ class _HomePageState extends State<HomePage> {
                   );
                   if (result != null) {
                     setState(() {
-                      _customGroups.add(result);
+                      _customGroups.insert(0, result);
                     });
                   }
                 },
@@ -237,6 +241,14 @@ class _HomePageState extends State<HomePage> {
                 }
 
                 final netBalance = totalOwedToYou - totalYouOwe;
+                final activeGroups = groups
+                    .where(
+                      (g) => !SettlementStorageService.isGroupSettled(
+                        g,
+                        displayName,
+                      ),
+                    )
+                    .toList();
 
                 return SingleChildScrollView(
                   child: Column(
@@ -292,15 +304,223 @@ class _HomePageState extends State<HomePage> {
                                     ],
                                   ),
                                 ),
+                                // 1. My QR Code button
+                                GestureDetector(
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (ctx) => const MyQrCodePage(),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.18,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.25,
+                                        ),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      children: [
+                                        Icon(
+                                          Icons.qr_code_2_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'My QR',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // 2. Scan QR button
+                                GestureDetector(
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (ctx) => const QrScannerPage(),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.18,
+                                      ),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.25,
+                                        ),
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.qr_code_scanner_rounded,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: AppSizes.xxl),
-                            // TODO: Fetch real user balances (youOwe, owedToYou, netBalance) from database/backend.
                             // Balance Card
                             BalanceCard(
                               youOwe: totalYouOwe,
                               owedToYou: totalOwedToYou,
                               netBalance: netBalance,
+                            ),
+
+                            // Dynamic Pending Payment Verification Card
+                            ValueListenableBuilder<List<PendingPayment>>(
+                              valueListenable:
+                                  PaymentReminderService
+                                      .pendingPaymentsNotifier,
+                              builder: (context, pendingList, _) {
+                                final activeList =
+                                    pendingList
+                                        .where((p) => !p.isPaid)
+                                        .toList();
+                                if (activeList.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+                                final firstPending = activeList.first;
+
+                                return Container(
+                                  margin: const EdgeInsets.only(top: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.08,
+                                        ),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFEF3C7),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.notifications_active_rounded,
+                                          color: Color(0xFFD97706),
+                                          size: 18,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Verify ₹${firstPending.amount.toStringAsFixed(0)} to ${firstPending.recipientName}',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w800,
+                                                color: Color(0xFF1E293B),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            Text(
+                                              firstPending.reminderCount > 0
+                                                  ? 'Reminder ${firstPending.reminderCount + 1}/2 • Completed?'
+                                                  : 'Is this payment completed?',
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w500,
+                                                color: Color(0xFF64748B),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed:
+                                            () =>
+                                                PaymentReminderService.markAsPaid(
+                                                  firstPending.id,
+                                                ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              AppColors.expensePositive,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          minimumSize: Size.zero,
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'Paid ✓',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      IconButton(
+                                        onPressed:
+                                            () =>
+                                                PaymentReminderService.remindLater(
+                                                  firstPending.id,
+                                                ),
+                                        icon: const Icon(
+                                          Icons.access_time_rounded,
+                                          size: 16,
+                                        ),
+                                        color: const Color(0xFF64748B),
+                                        tooltip: 'Remind Later',
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 28,
+                                          minHeight: 28,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -323,19 +543,21 @@ class _HomePageState extends State<HomePage> {
                               ),
                             ),
                             const SizedBox(height: AppSizes.m),
-                            if (groups.isEmpty) ...[
+                            if (activeGroups.isEmpty) ...[
                               Padding(
                                 padding: const EdgeInsets.symmetric(
                                   vertical: AppSizes.s,
                                 ),
                                 child: Text(
-                                  'No active groups. Tap + to create one!',
+                                  'No active groups. All settled up! 🎉',
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
-                                    color: Theme.of(context).brightness == Brightness.dark
-                                        ? const Color(0xFF94A3B8)
-                                        : AppColors.textLight,
+                                    color:
+                                        Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? const Color(0xFF94A3B8)
+                                            : AppColors.textLight,
                                   ),
                                 ),
                               ),
@@ -345,9 +567,9 @@ class _HomePageState extends State<HomePage> {
                                 clipBehavior: Clip.none,
                                 child: Row(
                                   children:
-                                      groups.map((group) {
+                                      activeGroups.map((group) {
                                         final isFirst =
-                                            groups.indexOf(group) == 0;
+                                            activeGroups.indexOf(group) == 0;
                                         return Padding(
                                           padding: EdgeInsets.only(
                                             left: isFirst ? 0 : AppSizes.m,
@@ -392,16 +614,20 @@ class _HomePageState extends State<HomePage> {
                             // List of expenses
                             if (recentExpenses.isEmpty) ...[
                               Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 24),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 24,
+                                ),
                                 child: Center(
                                   child: Text(
                                     'No recent expenses. 💸',
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
-                                      color: Theme.of(context).brightness == Brightness.dark
-                                          ? const Color(0xFF94A3B8)
-                                          : AppColors.textLight,
+                                      color:
+                                          Theme.of(context).brightness ==
+                                                  Brightness.dark
+                                              ? const Color(0xFF94A3B8)
+                                              : AppColors.textLight,
                                     ),
                                   ),
                                 ),

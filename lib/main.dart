@@ -9,6 +9,8 @@ import 'package:splitico/features/group/repository/group_repository.dart';
 import 'package:splitico/features/auth/bloc/auth_bloc.dart';
 import 'package:splitico/features/auth/repository/auth_repository.dart';
 import 'package:splitico/features/auth/presentation/login_screen.dart';
+import 'package:splitico/core/services/payment_reminder_service.dart';
+import 'package:splitico/core/services/settlement_storage_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
@@ -17,9 +19,13 @@ void main() async {
   await dotenv.load(fileName: ".env");
 
   await Supabase.initialize(
-      url: dotenv.env['SUPABASE_URL']!,
+    url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_KEY']!,
   );
+
+  await SettlementStorageService.init();
+  await PaymentReminderService.initialize();
+
   runApp(
     MultiBlocProvider(
       providers: [
@@ -54,5 +60,5 @@ class MyApp extends StatelessWidget {
       
   }
      );
-}
+  }
 }

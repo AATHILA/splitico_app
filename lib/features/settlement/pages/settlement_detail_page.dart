@@ -5,7 +5,9 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/models/group.dart';
 import '../../../core/models/expense.dart';
+import '../../../core/services/settlement_storage_service.dart';
 import '../../../core/services/upi_payment_service.dart';
+import 'qr_scanner_page.dart';
 
 class SettlementDetailPage extends StatefulWidget {
   final String memberName;
@@ -31,6 +33,55 @@ class SettlementDetailPage extends StatefulWidget {
 
 class _SettlementDetailPageState extends State<SettlementDetailPage> {
   bool _isSettled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedSettlementStatus();
+  }
+
+  Future<void> _loadSavedSettlementStatus() async {
+    final settled = await SettlementStorageService.isMemberSettled(
+      currentUserName: widget.currentUserDisplayName,
+      memberName: widget.memberName,
+    );
+    if (mounted && settled) {
+      setState(() {
+        _isSettled = true;
+      });
+    }
+  }
+
+  void _markAsSettled() {
+    setState(() {
+      _isSettled = true;
+    });
+    SettlementStorageService.markMemberSettled(
+      currentUserName: widget.currentUserDisplayName,
+      memberName: widget.memberName,
+      isSettled: true,
+      amount: widget.netBalance.abs(),
+    );
+  }
+
+  void _unmarkSettled() {
+    setState(() {
+      _isSettled = false;
+    });
+    SettlementStorageService.markMemberSettled(
+      currentUserName: widget.currentUserDisplayName,
+      memberName: widget.memberName,
+      isSettled: false,
+      amount: widget.netBalance.abs(),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Settlement with ${widget.memberName} unmarked.'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   String? get _memberUpiId {
     for (final group in widget.groups) {
@@ -145,10 +196,7 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
 
     final uri = Uri(
       scheme: 'mailto',
-      queryParameters: {
-        'subject': subject,
-        'body': body,
-      },
+      queryParameters: {'subject': subject, 'body': body},
     );
 
     try {
@@ -167,10 +215,7 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
     final body =
         'Hi ${widget.memberName}, friendly reminder to settle the balance of ₹$amount for $primaryGroup on Splitico. Thanks!';
 
-    final uri = Uri(
-      scheme: 'sms',
-      queryParameters: {'body': body},
-    );
+    final uri = Uri(scheme: 'sms', queryParameters: {'body': body});
 
     try {
       if (await canLaunchUrl(uri)) {
@@ -306,13 +351,47 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
             ),
           ),
           const SizedBox(width: AppSizes.m),
-          Text(
-            'Settlement detail',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: Theme.of(context).colorScheme.onSurface,
-              letterSpacing: -0.5,
+          Expanded(
+            child: Text(
+              'Settlement detail',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context).colorScheme.onSurface,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (ctx) => QrScannerPage(
+                    expectedRecipientName: widget.memberName,
+                    expectedAmount: widget.netBalance.abs(),
+                    expectedUpiId: _memberUpiId,
+                  ),
+                ),
+              );
+            },
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color:
+                      isDarkMode
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: const Icon(
+                Icons.qr_code_scanner_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ),
             ),
           ),
         ],
@@ -419,8 +498,7 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color:
-              isDarkMode ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
         ),
       ),
       child: Row(
@@ -537,8 +615,7 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color:
-              isDarkMode ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
         ),
       ),
       child: Row(
@@ -622,12 +699,10 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
     return Container(
       padding: const EdgeInsets.all(AppSizes.l),
       decoration: BoxDecoration(
-        color:
-            isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFEEF2FF),
+        color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFEEF2FF),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color:
-              isDarkMode ? const Color(0xFF334155) : const Color(0xFFD3E0FF),
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFD3E0FF),
         ),
       ),
       child: Row(
@@ -672,9 +747,7 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
             fontSize: 11,
             fontWeight: FontWeight.w800,
             color:
-                isDarkMode
-                    ? const Color(0xFF64748B)
-                    : const Color(0xFF94A3B8),
+                isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
             letterSpacing: 0.5,
           ),
         ),
@@ -770,18 +843,12 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color:
-                isDarkMode
-                    ? const Color(0xFF334155)
-                    : const Color(0xFFE2E8F0),
+                isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
           ),
         ),
         child: Column(
           children: [
-            Container(
-              height: 28,
-              alignment: Alignment.center,
-              child: icon,
-            ),
+            Container(height: 28, alignment: Alignment.center, child: icon),
             const SizedBox(height: 6),
             Text(
               label,
@@ -812,9 +879,7 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color:
-                isDarkMode
-                    ? const Color(0xFF1D4ED8)
-                    : const Color(0xFFBFDBFE),
+                isDarkMode ? const Color(0xFF1D4ED8) : const Color(0xFFBFDBFE),
           ),
         ),
         child: const Row(
@@ -894,10 +959,10 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
   Widget _buildActionButtons(BuildContext context, bool isOwed) {
     if (_isSettled) {
       return ElevatedButton.icon(
-        onPressed: null,
+        onPressed: _unmarkSettled,
         icon: const Icon(Icons.check_rounded, color: Colors.white, size: 18),
         label: const Text(
-          'Paid ✓',
+          'Paid ✓  (Tap to unmark)',
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w800,
@@ -906,8 +971,7 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          disabledBackgroundColor: AppColors.primary,
-          disabledForegroundColor: Colors.white,
+          foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 52),
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -923,24 +987,22 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
       // User owes this member -> Provide Pay and Mark Paid actions
       return Row(
         children: [
-          // Pay Button (UPI / Bank / GPay)
+          // Pay Button
           Expanded(
             flex: 6,
             child: ElevatedButton.icon(
               onPressed: () {
-                UpiPaymentService.directPay(
+                UpiPaymentService.showPaymentMethodBottomSheet(
                   context: context,
                   name: widget.memberName,
                   amount: amount,
                   upiId: _memberUpiId ?? '',
                   onSettled: () {
-                    setState(() {
-                      _isSettled = true;
-                    });
+                    _markAsSettled();
                   },
                 );
               },
-              icon: const Icon(Icons.payment_rounded, size: 18),
+              icon: const Icon(Icons.flash_on_rounded, size: 18),
               label: Text(
                 'Pay ₹${amount.toStringAsFixed(0)}',
                 style: const TextStyle(
@@ -966,15 +1028,15 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
             flex: 5,
             child: OutlinedButton(
               onPressed: () {
-                UpiPaymentService.showMarkPaidBottomSheet(
-                  context: context,
-                  name: widget.memberName,
-                  amount: amount,
-                  onSettled: () {
-                    setState(() {
-                      _isSettled = true;
-                    });
-                  },
+                _markAsSettled();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Payment of ₹${amount.toStringAsFixed(0)} to ${widget.memberName} marked as paid! 🎉',
+                    ),
+                    backgroundColor: AppColors.expensePositive,
+                    behavior: SnackBarBehavior.floating,
+                  ),
                 );
               },
               style: OutlinedButton.styleFrom(
@@ -998,9 +1060,7 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
     // Member owes user -> Mark as Settled button
     return ElevatedButton(
       onPressed: () {
-        setState(() {
-          _isSettled = true;
-        });
+        _markAsSettled();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1016,9 +1076,7 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
         foregroundColor: Colors.white,
         minimumSize: const Size(double.infinity, 52),
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
       child: const Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1054,11 +1112,7 @@ class _WhatsAppIcon extends StatelessWidget {
           ),
           Transform.rotate(
             angle: -0.15,
-            child: Icon(
-              Icons.phone,
-              color: Colors.white,
-              size: size * 0.52,
-            ),
+            child: Icon(Icons.phone, color: Colors.white, size: size * 0.52),
           ),
         ],
       ),
@@ -1072,10 +1126,11 @@ class _WhatsAppBubblePainter extends CustomPainter {
     final double w = size.width;
     final double h = size.height;
 
-    final paint = Paint()
-      ..color = const Color(0xFF25D366)
-      ..style = PaintingStyle.fill
-      ..isAntiAlias = true;
+    final paint =
+        Paint()
+          ..color = const Color(0xFF25D366)
+          ..style = PaintingStyle.fill
+          ..isAntiAlias = true;
 
     // Draw main circular speech bubble
     final path = Path();

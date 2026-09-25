@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
+import '../../../core/models/group.dart';
+import '../../../core/services/settlement_storage_service.dart';
+import '../../auth/bloc/auth_bloc.dart';
+import '../../auth/bloc/auth_state.dart';
 import '../bloc/group_bloc.dart';
 import '../bloc/group_state.dart';
 import 'create_group_page.dart';
 import 'group_details_page.dart';
-import '../../../core/models/group.dart';
 
 class GroupsPage extends StatefulWidget {
   const GroupsPage({super.key});
@@ -30,155 +33,209 @@ class _GroupsPageState extends State<GroupsPage> {
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    return BlocBuilder<GroupBloc, GroupState>(
-      builder: (context, state) {
-        List<GroupModel> groupsList = [];
-        if (state is GroupsLoaded) {
-          groupsList = state.groups;
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, authState) {
+        String displayName = 'You';
+        if (authState is AuthAuthenticated && authState.user != null) {
+          displayName = authState.user!.resolvedDisplayName;
+          if (displayName.isNotEmpty) {
+            displayName =
+                displayName[0].toUpperCase() + displayName.substring(1);
+          }
         }
 
-        final filteredGroups = groupsList.where((group) {
-          final matchesCategory = _selectedCategory == 'All' || group.type == _selectedCategory;
-          final matchesSearch = group.name.toLowerCase().contains(_searchQuery.toLowerCase());
-          return matchesCategory && matchesSearch;
-        }).toList();
+        return BlocBuilder<GroupBloc, GroupState>(
+          builder: (context, state) {
+            List<GroupModel> groupsList = [];
+            if (state is GroupsLoaded) {
+              groupsList = state.groups;
+            }
 
-        return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          body: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSizes.xxl),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: AppSizes.l),
-                  // Header Row: My Groups + New Button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'My Groups',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          color: Theme.of(context).colorScheme.onSurface,
-                          letterSpacing: -0.5,
-                        ),
+            final filteredGroups = groupsList.where((group) {
+              final matchesCategory =
+                  _selectedCategory == 'All' ||
+                  group.type.toLowerCase() == _selectedCategory.toLowerCase();
+              final matchesSearch = group.name.toLowerCase().contains(
+                _searchQuery.toLowerCase(),
+              );
+              return matchesCategory && matchesSearch;
+            }).toList();
+
+            return ValueListenableBuilder<Set<String>>(
+              valueListenable: SettlementStorageService.settledIdsNotifier,
+              builder: (context, _, __) {
+                return Scaffold(
+                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                  body: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSizes.xxl,
                       ),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const CreateGroupPage(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: AppSizes.l),
+                          // Header Row: My Groups + New Button
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'My Groups',
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w800,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (context) => const CreateGroupPage(),
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                ),
+                                child: const Text(
+                                  '+ New',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.1,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSizes.l),
+
+                          // Search Bar
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(
+                                AppSizes.radiusXL,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(
+                                    alpha: isDarkMode ? 0.2 : 0.03,
+                                  ),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+                            child: TextField(
+                              controller: _searchController,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              onChanged: (value) {
+                                setState(() {
+                                  _searchQuery = value;
+                                });
+                              },
+                              decoration: InputDecoration(
+                                hintText: 'Search groups...',
+                                hintStyle: TextStyle(
+                                  color:
+                                      isDarkMode
+                                          ? const Color(0xFF64748B)
+                                          : const Color(0xFF94A3B8),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                prefixIcon: const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: Text(
+                                    '🔍',
+                                    style: TextStyle(fontSize: 18),
+                                  ),
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppSizes.radiusXL,
+                                  ),
+                                  borderSide: BorderSide(
+                                    color:
+                                        isDarkMode
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppSizes.radiusXL,
+                                  ),
+                                  borderSide: BorderSide(
+                                    color:
+                                        isDarkMode
+                                            ? const Color(0xFF334155)
+                                            : const Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppSizes.radiusXL,
+                                  ),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.primary,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                              ),
+                            ),
                           ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                        ),
-                        child: const Text(
-                          '+ New',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.1,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSizes.l),
+                          const SizedBox(height: AppSizes.l),
 
-                  // Search Bar
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(AppSizes.radiusXL),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: isDarkMode ? 0.2 : 0.03),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                          // Category Filter Chips
+                          _buildCategoryChips(),
+                          const SizedBox(height: AppSizes.l),
+
+                          // Group Cards List
+                          Expanded(
+                            child:
+                                filteredGroups.isEmpty
+                                    ? _buildEmptyState()
+                                    : ListView.builder(
+                                      itemCount: filteredGroups.length,
+                                      itemBuilder: (context, index) {
+                                        return _buildGroupCard(
+                                          filteredGroups[index],
+                                          displayName,
+                                        );
+                                      },
+                                    ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: TextField(
-                      controller: _searchController,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        hintText: 'Search groups...',
-                        hintStyle: TextStyle(
-                          color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: Text('🔍', style: TextStyle(fontSize: 18)),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppSizes.radiusXL),
-                          borderSide: BorderSide(
-                            color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppSizes.radiusXL),
-                          borderSide: BorderSide(
-                            color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppSizes.radiusXL),
-                          borderSide: const BorderSide(
-                            color: AppColors.primary,
-                            width: 1.5,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
                   ),
-                  const SizedBox(height: AppSizes.l),
-
-                  // Category Filter Chips
-                  _buildCategoryChips(),
-                  const SizedBox(height: AppSizes.l),
-
-                  // Group Cards List
-                  Expanded(
-                    child: filteredGroups.isEmpty
-                        ? _buildEmptyState()
-                        : ListView.builder(
-                            itemCount: filteredGroups.length,
-                            itemBuilder: (context, index) {
-                              return _buildGroupCard(filteredGroups[index]);
-                            },
-                          ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+                );
+              },
+            );
+          },
         );
       },
     );
@@ -195,7 +252,8 @@ class _GroupsPageState extends State<GroupsPage> {
         itemCount: categories.length,
         itemBuilder: (context, index) {
           final category = categories[index];
-          final isSelected = _selectedCategory == category;
+          final isSelected =
+              _selectedCategory.toLowerCase() == category.toLowerCase();
 
           return Padding(
             padding: const EdgeInsets.only(right: AppSizes.s),
@@ -208,11 +266,17 @@ class _GroupsPageState extends State<GroupsPage> {
                 });
               },
               selectedColor: AppColors.primary,
-              backgroundColor: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+              backgroundColor:
+                  isDarkMode
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF1F5F9),
               labelStyle: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : (isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                color:
+                    isSelected
+                        ? Colors.white
+                        : (isDarkMode
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B)),
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
               ),
@@ -229,50 +293,77 @@ class _GroupsPageState extends State<GroupsPage> {
     );
   }
 
-  Widget _buildGroupCard(GroupModel group) {
+  Widget _buildGroupCard(GroupModel group, String displayName) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final isSettled = SettlementStorageService.isGroupSettled(
+      group,
+      displayName,
+    );
+
     final emojiMap = {
       'Travel': '🌴',
       'Home': '🏠',
       'Friends': '👥',
       'Family': '👪',
     };
+
     final emojiBgMap = {
-      'Travel': isDarkMode ? const Color(0xFF312E81).withValues(alpha: 0.5) : const Color(0xFFEEF2FF),
-      'Home': isDarkMode ? const Color(0xFF064E3B).withValues(alpha: 0.5) : const Color(0xFFECFDF5),
-      'Friends': isDarkMode ? const Color(0xFF1E3A8A).withValues(alpha: 0.5) : const Color(0xFFEFF6FF),
-      'Family': isDarkMode ? const Color(0xFF881337).withValues(alpha: 0.5) : const Color(0xFFFFF1F2),
+      'Travel':
+          isDarkMode
+              ? const Color(0xFF312E81).withValues(alpha: 0.5)
+              : const Color(0xFFEEF2FF),
+      'Home':
+          isDarkMode
+              ? const Color(0xFF064E3B).withValues(alpha: 0.5)
+              : const Color(0xFFECFDF5),
+      'Friends':
+          isDarkMode
+              ? const Color(0xFF1E3A8A).withValues(alpha: 0.5)
+              : const Color(0xFFEFF6FF),
+      'Family':
+          isDarkMode
+              ? const Color(0xFF881337).withValues(alpha: 0.5)
+              : const Color(0xFFFFF1F2),
     };
 
     final emoji = emojiMap[group.type] ?? '👥';
-    final emojiBg = emojiBgMap[group.type] ?? (isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF));
+    final emojiBg =
+        isSettled
+            ? (isDarkMode
+                ? const Color(0xFF334155).withValues(alpha: 0.35)
+                : const Color(0xFFF1F5F9))
+            : (emojiBgMap[group.type] ??
+                (isDarkMode
+                    ? const Color(0xFF1E293B)
+                    : const Color(0xFFEFF6FF)));
 
-    // Resolve balance using mock balances or calculate
-    final String balanceLabel;
-    final double balance;
-    if (group.id == 'goa_trip_2024') {
-      balanceLabel = 'you owe';
-      balance = -1240.0;
-    } else if (group.id == 'flat_mates') {
-      balanceLabel = 'owed to you';
-      balance = 2400.0;
-    } else if (group.id == 'family') {
-      balanceLabel = 'settled up';
-      balance = 0.0;
-    } else {
-      balanceLabel = 'settled up';
-      balance = 0.0;
-    }
+    // Calculate dynamic balance
+    final double balance = SettlementStorageService.calculateGroupUserBalance(
+      group,
+      displayName,
+    );
 
-    Color balanceColor = isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B); // default grey
+    String balanceLabel;
+    Color balanceColor =
+        isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
     String balanceText = '₹0';
 
-    if (balance < 0) {
+    if (isSettled) {
+      balanceLabel = 'all settled';
+      balanceText = 'Settled ✓';
+      balanceColor =
+          isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    } else if (balance < -0.01) {
+      balanceLabel = 'you owe';
       balanceColor = AppColors.expenseNegative; // red
-      balanceText = '-₹${balance.abs().toStringAsFixed(2)}';
-    } else if (balance > 0) {
+      balanceText = '-₹${balance.abs().toStringAsFixed(0)}';
+    } else if (balance > 0.01) {
+      balanceLabel = 'owed to you';
       balanceColor = AppColors.expensePositive; // green
-      balanceText = '+₹${balance.toStringAsFixed(2)}';
+      balanceText = '+₹${balance.toStringAsFixed(0)}';
+    } else {
+      balanceLabel = 'settled up';
+      balanceText = '₹0';
     }
 
     return GestureDetector(
@@ -298,7 +389,15 @@ class _GroupsPageState extends State<GroupsPage> {
             ),
           ],
           border: Border.all(
-            color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+            color:
+                isSettled
+                    ? (isDarkMode
+                        ? const Color(0xFF334155).withValues(alpha: 0.5)
+                        : const Color(0xFFE2E8F0))
+                    : (isDarkMode
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFF1F5F9)),
+            width: isSettled ? 1.0 : 1.2,
           ),
         ),
         child: Row(
@@ -312,7 +411,10 @@ class _GroupsPageState extends State<GroupsPage> {
                 borderRadius: BorderRadius.circular(AppSizes.radiusXL),
               ),
               alignment: Alignment.center,
-              child: Text(emoji, style: const TextStyle(fontSize: 28)),
+              child: Opacity(
+                opacity: isSettled ? 0.65 : 1.0,
+                child: Text(emoji, style: const TextStyle(fontSize: 28)),
+              ),
             ),
             const SizedBox(width: AppSizes.l),
 
@@ -321,22 +423,111 @@ class _GroupsPageState extends State<GroupsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    group.name,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          group.name,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color:
+                                isSettled
+                                    ? (isDarkMode
+                                        ? const Color(0xFF94A3B8)
+                                        : const Color(0xFF64748B))
+                                    : Theme.of(context).colorScheme.onSurface,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isSettled) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                isDarkMode
+                                    ? const Color(
+                                      0xFF334155,
+                                    ).withValues(alpha: 0.5)
+                                    : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color:
+                                  isDarkMode
+                                      ? const Color(0xFF475569)
+                                      : const Color(0xFFE2E8F0),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Text(
+                            'Inactive',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color:
+                                  isDarkMode
+                                      ? const Color(0xFF94A3B8)
+                                      : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '${group.members.length} members • ${group.expenses.length} expenses',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              isSettled
+                                  ? (isDarkMode
+                                      ? const Color(0xFF1E293B)
+                                      : const Color(0xFFF8FAFC))
+                                  : (isDarkMode
+                                      ? const Color(0xFF1E293B)
+                                      : const Color(0xFFF1F5F9)),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          group.type,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color:
+                                isSettled
+                                    ? (isDarkMode
+                                        ? const Color(0xFF64748B)
+                                        : const Color(0xFF94A3B8))
+                                    : AppColors.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '${group.members.length} members • ${group.expenses.length} exp',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color:
+                                isDarkMode
+                                    ? const Color(0xFF64748B)
+                                    : const Color(0xFF94A3B8),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -349,18 +540,21 @@ class _GroupsPageState extends State<GroupsPage> {
                 Text(
                   balanceText,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: balanceColor,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   balanceLabel,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    color:
+                        isDarkMode
+                            ? const Color(0xFF64748B)
+                            : const Color(0xFF94A3B8),
                   ),
                 ),
               ],
@@ -385,16 +579,24 @@ class _GroupsPageState extends State<GroupsPage> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: isDarkMode ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+              color:
+                  isDarkMode
+                      ? const Color(0xFFCBD5E1)
+                      : const Color(0xFF475569),
             ),
           ),
           const SizedBox(height: AppSizes.xs),
           Text(
-            'Try adjusting your search query or filters',
+            _selectedCategory == 'All'
+                ? 'Try adjusting your search query'
+                : 'No ${_selectedCategory.toLowerCase()} groups found',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+              color:
+                  isDarkMode
+                      ? const Color(0xFF64748B)
+                      : const Color(0xFF94A3B8),
             ),
           ),
         ],

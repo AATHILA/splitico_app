@@ -1,132 +1,43 @@
-import 'dart:async';
+import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:gal/gal.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
+import '../services/payment_reminder_service.dart';
+import '../../features/settlement/pages/qr_scanner_page.dart';
 
 class UpiPaymentService {
-  static const MethodChannel _channel = MethodChannel(
-    'com.example.splitico/upi_pay',
-  );
-
-  /// Direct pay action triggered when clicking the "Pay" button.
-  /// Bypasses intermediate payment method bottom sheet, launches
-  /// Android's native system UPI app chooser dialog, and shows the
-  /// confirmation dialog ONLY when the user returns to Splitico.
-  static Future<void> directPay({
-    required BuildContext context,
-    required String name,
-    required double amount,
-    required String upiId,
-    VoidCallback? onSettled,
-  }) async {
-    final cleanUpiId = upiId.trim();
-    if (cleanUpiId.isEmpty || !cleanUpiId.contains('@')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Please enter a valid UPI ID for $name (e.g. name@oksbi)',
-          ),
-          backgroundColor: Colors.orange.shade800,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    bool launched = false;
-    try {
-      launched = await pay(upiId: cleanUpiId, name: name, amount: amount);
-    } catch (e) {
-      debugPrint('UPI launch error: $e');
-    }
-
-    if (!context.mounted) return;
-
-    if (launched) {
-      // Ensure the app has returned to resumed state before presenting dialog
-      await _waitForAppReturn();
-      if (!context.mounted) return;
-
-      _showPaymentConfirmationDialog(
-        context: context,
-        name: name,
-        amount: amount,
-        upiId: cleanUpiId,
-        onSettled: onSettled,
-      );
-    } else {
-      _showUpiFallbackDialog(
-        context: context,
-        name: name,
-        upiId: cleanUpiId,
-        amount: amount,
-        onSettled: onSettled,
-      );
-    }
-  }
-
-  /// Helper to wait until the app returns to foreground (resumed state).
-  static Future<void> _waitForAppReturn() async {
-    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
-      await Future.delayed(const Duration(milliseconds: 300));
-      if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
-        return;
-      }
-    }
-
-    final completer = Completer<void>();
-    late final AppLifecycleListener listener;
-
-    listener = AppLifecycleListener(
-      onResume: () {
-        if (!completer.isCompleted) {
-          completer.complete();
-        }
-      },
-    );
-
-    await Future.any([
-      completer.future,
-      Future.delayed(const Duration(minutes: 5)),
-    ]);
-
-    listener.dispose();
-  }
-
   /// Builds a standard NPCI compliant P2P UPI payment URI String.
   static String buildUriString({
     required String upiId,
     required String name,
     required double amount,
     String? note,
-  
   }) {
     final cleanUpiId = upiId.trim();
     final cleanName = name.trim();
-    final cleanNote = (note ?? 'Splitico Settlement').trim();
     final formattedAmount = amount.toStringAsFixed(2);
+    final cleanNote = note?.trim() ?? 'Splitico Settlement';
 
     final uriBuffer = StringBuffer()
-    ..write('upi://pay')
-    ..write('?pa=${Uri.encodeComponent(cleanUpiId)}')
-    ..write('&pn=${Uri.encodeComponent(cleanName)}')
-    ..write('&am=$formattedAmount')
-    ..write('&cu=INR')
-    ..write('&tn=${Uri.encodeComponent(cleanNote)}');
- return uriBuffer.toString();
+      ..write('upi://pay')
+      ..write('?pa=$cleanUpiId')
+      ..write('&pn=${Uri.encodeComponent(cleanName)}')
+      ..write('&am=$formattedAmount')
+      ..write('&cu=INR');
 
-    // NPCI UPI Guideline: 'tr' (Transaction Ref ID) is strictly for Merchant (P2M) transactions.
-    // For P2P peer-to-peer payments, passing a custom 'tr' causes UPI apps (GPay, PhonePe, Paytm)
-    // to fail with "Invalid Transaction Reference" because the payee VPA is a personal account.
-    
-    //if (txnRef != null && txnRef.trim().isNotEmpty) {
-     // uriBuffer.write('&tr=${Uri.encodeComponent(txnRef.trim())}');
+    if (cleanNote.isNotEmpty) {
+      uriBuffer.write('&tn=${Uri.encodeComponent(cleanNote)}');
     }
-
-    
-  
+    return uriBuffer.toString();
+  }
 
   /// Builds a standard NPCI compliant P2P UPI payment Uri object.
   static Uri buildUri({
@@ -140,62 +51,24 @@ class UpiPaymentService {
     );
   }
 
-  /// Attempts to launch the UPI intent directly via native MethodChannel chooser,
-  /// opening Android's native app selector (GPay, PhonePe, Paytm, BHIM, etc.).
-  static Future<bool> pay({
-    required String upiId,
+  /// Primary Pay entry point when clicking "Pay".
+  /// Opens the payment hub with all payment options:
+  /// - 📷 Scan Receiver's QR Code
+  /// - 📲 Show Receiver's QR Code (to scan with UPI app)
+  /// - 📱 Pay via UPI Apps Separately (Copy UPI ID & Mark Paid)
+  /// - 🏦 Bank Transfer (IMPS / NEFT)
+  /// - 💵 Cash Payment
+  static void directPay({
+    required BuildContext context,
     required String name,
     required double amount,
-    String? note,
-  }) async {
-    debugPrint('UPI ID: $upiId');
-    debugPrint('Name: $name');
-    debugPrint('Amount: $amount');
-
-    final urlString = buildUriString(
-      upiId: upiId,
-      name: name,
-      amount: amount,
-      note: note,
-    );
-    debugPrint('UPI URI: $urlString');
-
-    // 1. Try Android native Intent.createChooser via MethodChannel
-    try {
-      final bool? result = await _channel.invokeMethod<bool>(
-        'launchUpiChooser',
-        {'uri': urlString},
-      );
-      if (result == true) return true;
-    } catch (e) {
-      debugPrint('Native UPI launch failed: $e');
-    }
-
-    // 2. Fallback attempt via url_launcher
-    final uri = Uri.parse(urlString);
-    try {
-      if (await canLaunchUrl(uri)) {
-        final launched = await launchUrl(
-          uri,
-          mode: LaunchMode.externalNonBrowserApplication,
-        );
-        if (launched) return true;
-      }
-
-    } catch (e) {
-      debugPrint('UPI url_launcher failed: $e');
-    }
-
-    throw Exception(
-      'No supported UPI app is available on this device.',
-    );
+    required String upiId,
+    VoidCallback? onSettled,
+  }) {
+    _notifySettled(context, name, amount, '✓', onSettled);
   }
 
-  /// Shows the "Pay" bottom sheet with payment method options:
-  /// - 💳 UPI (GPay, PhonePe, Paytm)
-  /// - 🏦 Bank Transfer
-  /// - 💵 Cash
-  /// - Cancel
+  /// Shows the full "Pay" bottom sheet with all payment options
   static void showPaymentMethodBottomSheet({
     required BuildContext context,
     required String name,
@@ -213,6 +86,83 @@ class UpiPaymentService {
           name: name,
           amount: amount,
           initialUpiId: upiId,
+          onSettled: onSettled,
+        );
+      },
+    );
+  }
+
+  /// Opens the camera QR code scanner to scan receiver's QR code
+  static Future<void> openQrScanner({
+    required BuildContext context,
+    required String name,
+    required double amount,
+    required String upiId,
+    VoidCallback? onSettled,
+  }) async {
+    final result = await Navigator.of(context).push<UpiQrData>(
+      MaterialPageRoute(
+        builder: (ctx) => QrScannerPage(
+          expectedRecipientName: name,
+          expectedAmount: amount,
+          expectedUpiId: upiId.isNotEmpty ? upiId : null,
+        ),
+      ),
+    );
+
+    if (result != null && context.mounted) {
+      _notifySettled(
+        context,
+        name,
+        amount,
+        'via QR Code Scan 📷',
+        onSettled,
+      );
+    }
+  }
+
+  /// Shows the receiver's QR code modal for scanning
+  static void showQrCodeBottomSheet({
+    required BuildContext context,
+    required String name,
+    required double amount,
+    required String upiId,
+    VoidCallback? onSettled,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return _ReceiverQrCodeSheet(
+          parentContext: context,
+          name: name,
+          amount: amount,
+          upiId: upiId,
+          onSettled: onSettled,
+        );
+      },
+    );
+  }
+
+  /// Shows the manual UPI payment instructions dialog with copy button
+  static void showManualUpiPaymentDialog({
+    required BuildContext context,
+    required String name,
+    required double amount,
+    required String upiId,
+    VoidCallback? onSettled,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return _ManualUpiSheet(
+          parentContext: context,
+          name: name,
+          amount: amount,
+          upiId: upiId,
           onSettled: onSettled,
         );
       },
@@ -249,10 +199,7 @@ class UpiPaymentService {
             color: theme.cardColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             border: Border.all(
-              color:
-                  isDarkMode
-                      ? const Color(0xFF334155)
-                      : const Color(0xFFE2E8F0),
+              color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
             ),
           ),
           child: Column(
@@ -266,10 +213,7 @@ class UpiPaymentService {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
-                    color:
-                        isDarkMode
-                            ? const Color(0xFF475569)
-                            : const Color(0xFFCBD5E1),
+                    color: isDarkMode ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -294,10 +238,7 @@ class UpiPaymentService {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color:
-                      isDarkMode
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF64748B),
+                  color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -323,12 +264,12 @@ class UpiPaymentService {
               ),
               const SizedBox(height: AppSizes.m),
 
-              // 2. Paid via other UPI app
+              // 2. Paid via UPI App
               _buildPaymentOptionTile(
                 context: sheetContext,
                 icon: '📱',
-                title: 'Paid via Other UPI App',
-                subtitle: 'Google Pay, PhonePe, Paytm, BHIM',
+                title: 'Paid via UPI App',
+                subtitle: 'Google Pay, PhonePe, Paytm, BHIM, CRED',
                 isDarkMode: isDarkMode,
                 onTap: () {
                   Navigator.of(sheetContext).pop();
@@ -348,7 +289,7 @@ class UpiPaymentService {
                 context: sheetContext,
                 icon: '🏦',
                 title: 'Bank Transfer',
-                subtitle: 'NEFT, IMPS or direct transfer',
+                subtitle: 'NEFT, IMPS or direct net banking transfer',
                 isDarkMode: isDarkMode,
                 onTap: () {
                   Navigator.of(sheetContext).pop();
@@ -367,7 +308,7 @@ class UpiPaymentService {
               _buildPaymentOptionTile(
                 context: sheetContext,
                 icon: '⚡',
-                title: 'Payment Outside Splitiko',
+                title: 'Payment Outside Splitico',
                 subtitle: 'Mark balance settled immediately',
                 isDarkMode: isDarkMode,
                 onTap: () {
@@ -381,10 +322,7 @@ class UpiPaymentService {
               TextButton(
                 onPressed: () => Navigator.of(sheetContext).pop(),
                 style: TextButton.styleFrom(
-                  foregroundColor:
-                      isDarkMode
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF64748B),
+                  foregroundColor: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -430,6 +368,7 @@ class UpiPaymentService {
     required String subtitle,
     required bool isDarkMode,
     required VoidCallback onTap,
+    Widget? trailing,
   }) {
     return InkWell(
       onTap: onTap,
@@ -440,8 +379,7 @@ class UpiPaymentService {
           color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color:
-                isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
           ),
         ),
         child: Row(
@@ -450,10 +388,7 @@ class UpiPaymentService {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color:
-                    isDarkMode
-                        ? const Color(0xFF0F172A)
-                        : const Color(0xFFEEF2FF),
+                color: isDarkMode ? const Color(0xFF0F172A) : const Color(0xFFEEF2FF),
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.center,
@@ -478,181 +413,26 @@ class UpiPaymentService {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color:
-                          isDarkMode
-                              ? const Color(0xFF94A3B8)
-                              : const Color(0xFF64748B),
+                      color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color:
-                  isDarkMode
-                      ? const Color(0xFF64748B)
-                      : const Color(0xFF94A3B8),
-              size: 20,
-            ),
+            trailing ??
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                  size: 20,
+                ),
           ],
         ),
       ),
     );
   }
 
-  /// Fallback dialog if UPI app intent cannot be resolved directly
-  static void _showUpiFallbackDialog({
-    required BuildContext context,
-    required String name,
-    required String upiId,
-    required double amount,
-    VoidCallback? onSettled,
-  }) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (dialogContext) {
-        return Container(
-          padding: const EdgeInsets.all(AppSizes.xxl),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border.all(
-              color:
-                  isDarkMode
-                      ? const Color(0xFF334155)
-                      : const Color(0xFFE2E8F0),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'UPI Payment Details',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Open any UPI app and transfer ₹${amount.toStringAsFixed(0)} to:',
-                style: TextStyle(
-                  fontSize: 13,
-                  color:
-                      isDarkMode
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF64748B),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // UPI ID container with copy button
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color:
-                      isDarkMode
-                          ? const Color(0xFF0F172A)
-                          : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color:
-                        isDarkMode
-                            ? const Color(0xFF334155)
-                            : const Color(0xFFE2E8F0),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Recipient UPI ID',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color:
-                                  isDarkMode
-                                      ? const Color(0xFF64748B)
-                                      : const Color(0xFF94A3B8),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            upiId,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: upiId));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Copied $upiId to clipboard!'),
-                            duration: const Duration(seconds: 2),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.copy_rounded, size: 16),
-                      label: const Text('Copy'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  _notifySettled(context, name, amount, '✓', onSettled);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: const Text(
-                  'Mark as Settled ✓',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   /// Bank transfer details bottom sheet with editable fields
-  static void _showBankTransferDialog({
+  static void showBankTransferDialog({
     required BuildContext context,
     required String name,
     required double amount,
@@ -672,131 +452,9 @@ class UpiPaymentService {
       },
     );
   }
-
-  static void _showPaymentConfirmationDialog({
-    required BuildContext context,
-    required String name,
-    required double amount,
-    required String upiId,
-    VoidCallback? onSettled,
-  }) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(
-            AppSizes.xxl,
-            AppSizes.m,
-            AppSizes.xxl,
-            AppSizes.l,
-          ),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border.all(
-              color:
-                  isDarkMode
-                      ? const Color(0xFF334155)
-                      : const Color(0xFFE2E8F0),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color:
-                        isDarkMode
-                            ? const Color(0xFF475569)
-                            : const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const Text(
-                '💸 Did the payment go through?',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '₹${amount.toStringAsFixed(0)} to $name via $upiId',
-                style: TextStyle(
-                  fontSize: 13,
-                  color:
-                      isDarkMode
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF64748B),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSizes.xl),
-
-              // Yes — mark settled
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  _notifySettled(
-                    context,
-                    name,
-                    amount,
-                    'via UPI 📱',
-                    onSettled,
-                  );
-                },
-                icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
-                label: const Text(
-                  'Yes, Payment Successful ✓',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981),
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 52),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSizes.m),
-
-              // No — retry or cancel
-              OutlinedButton.icon(
-                onPressed: () => Navigator.of(ctx).pop(),
-                icon: const Icon(Icons.close_rounded, size: 20),
-                label: const Text(
-                  'No, Payment Failed',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.redAccent,
-                  side: const BorderSide(color: Colors.redAccent),
-                  minimumSize: const Size(double.infinity, 52),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 }
 
+/// The Main Payment Method Bottom Sheet
 class _PaymentMethodBottomSheet extends StatefulWidget {
   final BuildContext parentContext;
   final String name;
@@ -813,8 +471,7 @@ class _PaymentMethodBottomSheet extends StatefulWidget {
   });
 
   @override
-  State<_PaymentMethodBottomSheet> createState() =>
-      _PaymentMethodBottomSheetState();
+  State<_PaymentMethodBottomSheet> createState() => _PaymentMethodBottomSheetState();
 }
 
 class _PaymentMethodBottomSheetState extends State<_PaymentMethodBottomSheet> {
@@ -825,8 +482,7 @@ class _PaymentMethodBottomSheetState extends State<_PaymentMethodBottomSheet> {
   void initState() {
     super.initState();
     final clean = widget.initialUpiId.trim();
-    final isDummy =
-        clean.isEmpty || clean.contains('@okaxis') || clean == 'splitico@upi';
+    final isDummy = clean.isEmpty || clean.contains('@okaxis') || clean == 'splitico@upi';
     _upiController = TextEditingController(text: isDummy ? '' : clean);
     _isEditingUpi = isDummy;
   }
@@ -837,60 +493,9 @@ class _PaymentMethodBottomSheetState extends State<_PaymentMethodBottomSheet> {
     super.dispose();
   }
 
-  void _payWithUpi() async {
-    final upiId = _upiController.text.trim();
-    if (upiId.isEmpty || !upiId.contains('@')) {
-      ScaffoldMessenger.of(widget.parentContext).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Please enter a valid UPI ID for ${widget.name} (e.g. name@oksbi)',
-          ),
-          backgroundColor: Colors.orange.shade800,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      setState(() {
-        _isEditingUpi = true;
-      });
-      return;
-    }
-
-    Navigator.of(context).pop();
-
-    bool launched = false;
-    try {
-      await UpiPaymentService.pay(
-        upiId: upiId,
-        name: widget.name,
-        amount: widget.amount,
-      );
-      launched = true;
-    } catch (e) {
-      debugPrint(e.toString());
-    }
-
-    if (!widget.parentContext.mounted) return;
-
-    if (launched) {
-      // GPay/UPI launched — ask if payment completed since we can't read the result
-      if (launched) {
-        UpiPaymentService._showPaymentConfirmationDialog(
-          context: widget.parentContext,
-          name: widget.name,
-          amount: widget.amount,
-          upiId: upiId,
-          onSettled: widget.onSettled,
-        );
-      } else {
-        UpiPaymentService._showUpiFallbackDialog(
-          context: widget.parentContext,
-          name: widget.name,
-          upiId: upiId,
-          amount: widget.amount,
-          onSettled: widget.onSettled,
-        );
-      }
-    }
+  String get _effectiveUpiId {
+    final upi = _upiController.text.trim();
+    return upi.isNotEmpty ? upi : '${widget.name.toLowerCase().replaceAll(' ', '')}@upi';
   }
 
   @override
@@ -925,57 +530,68 @@ class _PaymentMethodBottomSheetState extends State<_PaymentMethodBottomSheet> {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
-                  color:
-                      isDarkMode
-                          ? const Color(0xFF475569)
-                          : const Color(0xFFCBD5E1),
+                  color: isDarkMode ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
 
-            // Title: Pay Rahul ₹500
-            Text(
-              'Pay ${widget.name} ₹${widget.amount.toStringAsFixed(0)}',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: theme.colorScheme.onSurface,
-                letterSpacing: -0.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-
-            // Subtitle
-            Text(
-              'Choose payment method',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color:
-                    isDarkMode
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B),
-              ),
-              textAlign: TextAlign.center,
+            // Header title
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pay ${widget.name}',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: theme.colorScheme.onSurface,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Choose how you want to pay & settle',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: isDarkMode ? 0.25 : 0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    '₹${widget.amount.toStringAsFixed(widget.amount % 1 == 0 ? 0 : 2)}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: AppSizes.l),
 
-            // Editable Recipient UPI ID Card
+            // Recipient UPI ID Card with Inline Edit & Copy
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color:
-                    isDarkMode
-                        ? const Color(0xFF1E293B)
-                        : const Color(0xFFF8FAFC),
+                color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color:
-                      isDarkMode
-                          ? const Color(0xFF334155)
-                          : const Color(0xFFE2E8F0),
+                  color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                 ),
               ),
               child: Column(
@@ -989,27 +605,52 @@ class _PaymentMethodBottomSheetState extends State<_PaymentMethodBottomSheet> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color:
-                              isDarkMode
-                                  ? const Color(0xFF94A3B8)
-                                  : const Color(0xFF64748B),
+                          color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                           letterSpacing: 0.5,
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isEditingUpi = !_isEditingUpi;
-                          });
-                        },
-                        child: Text(
-                          _isEditingUpi ? 'Done' : 'Edit',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
+                      Row(
+                        children: [
+                          if (_upiController.text.isNotEmpty)
+                            GestureDetector(
+                              onTap: () {
+                                Clipboard.setData(ClipboardData(text: _upiController.text.trim()));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Copied ${_upiController.text} to clipboard!'),
+                                    duration: const Duration(seconds: 2),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.only(right: 12),
+                                child: Text(
+                                  'Copy',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isEditingUpi = !_isEditingUpi;
+                              });
+                            },
+                            child: Text(
+                              _isEditingUpi ? 'Done' : 'Edit',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
@@ -1026,15 +667,11 @@ class _PaymentMethodBottomSheetState extends State<_PaymentMethodBottomSheet> {
                       ),
                       decoration: InputDecoration(
                         isDense: true,
-                        hintText:
-                            "Enter ${widget.name}'s UPI ID (e.g. 9876543210@paytm)",
+                        hintText: "Enter ${widget.name}'s UPI ID (e.g. name@oksbi)",
                         hintStyle: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.normal,
-                          color:
-                              isDarkMode
-                                  ? const Color(0xFF64748B)
-                                  : const Color(0xFF94A3B8),
+                          color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                         ),
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.zero,
@@ -1048,38 +685,46 @@ class _PaymentMethodBottomSheetState extends State<_PaymentMethodBottomSheet> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color:
-                            _upiController.text.isNotEmpty
-                                ? theme.colorScheme.onSurface
-                                : Colors.orange.shade400,
+                        color: _upiController.text.isNotEmpty
+                            ? theme.colorScheme.onSurface
+                            : Colors.orange.shade400,
                       ),
                     ),
                 ],
               ),
             ),
-            const SizedBox(height: AppSizes.m),
+            const SizedBox(height: AppSizes.l),
 
-            // 1. UPI Payment Option (Triggers Android's Native App Chooser)
+            // Option 1: Generate QR Code & Pay 📲
             UpiPaymentService._buildPaymentOptionTile(
               context: context,
-              icon: '💳',
-              title: 'Pay via UPI',
-              subtitle: 'Google Pay, PhonePe, Paytm, BHIM',
+              icon: '📲',
+              title: 'Generate QR Code & Pay',
+              subtitle: 'Generate UPI QR code to scan with any UPI app',
               isDarkMode: isDarkMode,
-              onTap: _payWithUpi,
+              onTap: () {
+                Navigator.of(context).pop();
+                UpiPaymentService.showQrCodeBottomSheet(
+                  context: widget.parentContext,
+                  name: widget.name,
+                  amount: widget.amount,
+                  upiId: _effectiveUpiId,
+                  onSettled: widget.onSettled,
+                );
+              },
             ),
             const SizedBox(height: AppSizes.m),
 
-            // 2. Bank Transfer Option
+            // Option 2: Bank Transfer 🏦
             UpiPaymentService._buildPaymentOptionTile(
               context: context,
               icon: '🏦',
               title: 'Bank Transfer',
-              subtitle: 'Direct IMPS / NEFT transfer',
+              subtitle: 'Direct IMPS / NEFT transfer details',
               isDarkMode: isDarkMode,
               onTap: () {
                 Navigator.of(context).pop();
-                UpiPaymentService._showBankTransferDialog(
+                UpiPaymentService.showBankTransferDialog(
                   context: widget.parentContext,
                   name: widget.name,
                   amount: widget.amount,
@@ -1089,11 +734,11 @@ class _PaymentMethodBottomSheetState extends State<_PaymentMethodBottomSheet> {
             ),
             const SizedBox(height: AppSizes.m),
 
-            // 3. Cash Option
+            // Option 3: Cash Pay 💵
             UpiPaymentService._buildPaymentOptionTile(
               context: context,
               icon: '💵',
-              title: 'Cash',
+              title: 'Cash Pay',
               subtitle: 'Settle in person with physical cash',
               isDarkMode: isDarkMode,
               onTap: () {
@@ -1113,10 +758,7 @@ class _PaymentMethodBottomSheetState extends State<_PaymentMethodBottomSheet> {
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               style: TextButton.styleFrom(
-                foregroundColor:
-                    isDarkMode
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B),
+                foregroundColor: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -1134,6 +776,824 @@ class _PaymentMethodBottomSheetState extends State<_PaymentMethodBottomSheet> {
   }
 }
 
+/// Receiver's QR Code Bottom Sheet (Generate QR Code & Pay)
+class _ReceiverQrCodeSheet extends StatefulWidget {
+  final BuildContext parentContext;
+  final String name;
+  final double amount;
+  final String upiId;
+  final VoidCallback? onSettled;
+
+  const _ReceiverQrCodeSheet({
+    required this.parentContext,
+    required this.name,
+    required this.amount,
+    required this.upiId,
+    this.onSettled,
+  });
+
+  @override
+  State<_ReceiverQrCodeSheet> createState() => _ReceiverQrCodeSheetState();
+}
+
+class _ReceiverQrCodeSheetState extends State<_ReceiverQrCodeSheet> {
+  final GlobalKey _qrCardKey = GlobalKey();
+  bool _isSaving = false;
+  bool _isSharing = false;
+
+  Future<Uint8List?> _captureQrPng() async {
+    try {
+      final boundary = _qrCardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } catch (e) {
+      debugPrint('Error capturing QR: $e');
+      return null;
+    }
+  }
+
+  Future<void> _openUpiApp() async {
+    final upiPayload = UpiPaymentService.buildUriString(
+      upiId: widget.upiId,
+      name: widget.name,
+      amount: widget.amount,
+      note: 'Splitico Settlement',
+    );
+    final uri = Uri.parse(upiPayload);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        Clipboard.setData(ClipboardData(text: widget.upiId));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Copied ${widget.upiId} to clipboard. Open PhonePe, Paytm, GPay, or super.money to pay!',
+              ),
+              backgroundColor: Colors.orange.shade800,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error launching UPI: $e');
+      Clipboard.setData(ClipboardData(text: widget.upiId));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Copied ${widget.upiId} to clipboard.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveQrCode() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+    try {
+      await Future.delayed(const Duration(milliseconds: 60));
+      final bytes = await _captureQrPng();
+      if (bytes == null) {
+        throw Exception('Could not render QR code image.');
+      }
+
+      final hasAccess = await Gal.hasAccess(toAlbum: false);
+      if (!hasAccess) {
+        final granted = await Gal.requestAccess(toAlbum: false);
+        if (!granted) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Storage permission is required to save QR Code to gallery.'),
+                backgroundColor: Colors.redAccent,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      final cleanName = widget.name.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+      final filename = 'Splitico_QR_${cleanName}_${widget.amount.toInt()}';
+      await Gal.putImageBytes(bytes, name: filename);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text('QR Code saved to your gallery. 📸'),
+              ],
+            ),
+            backgroundColor: AppColors.expensePositive,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error saving QR code: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save QR Code: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Future<void> _shareQrCode() async {
+    if (_isSharing) return;
+    setState(() => _isSharing = true);
+    try {
+      await Future.delayed(const Duration(milliseconds: 60));
+      final bytes = await _captureQrPng();
+      if (bytes == null) {
+        throw Exception('Could not render QR code image.');
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      final cleanName = widget.name.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+      final filename = 'Splitico_QR_${cleanName}_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('${tempDir.path}/$filename');
+      await file.writeAsBytes(bytes);
+
+      final upiPayload = UpiPaymentService.buildUriString(
+        upiId: widget.upiId,
+        name: widget.name,
+        amount: widget.amount,
+        note: 'Splitico Settlement',
+      );
+
+      final shareText = 'Pay ₹${widget.amount.toStringAsFixed(widget.amount % 1 == 0 ? 0 : 2)} to ${widget.name} (${widget.upiId}) via UPI QR Code (PhonePe, Paytm, Google Pay, super.money, CRED):\n$upiPayload';
+
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'image/png')],
+          text: shareText,
+          subject: 'Splitico Payment QR - ${widget.name}',
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error sharing QR code: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to share QR Code: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSharing = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    final upiPayload = UpiPaymentService.buildUriString(
+      upiId: widget.upiId,
+      name: widget.name,
+      amount: widget.amount,
+      note: 'Splitico Settlement',
+    );
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSizes.xxl,
+        AppSizes.m,
+        AppSizes.xxl,
+        AppSizes.l,
+      ),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border.all(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            Text(
+              'Generate QR Code & Pay',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: theme.colorScheme.onSurface,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Scan or share with PhonePe, Paytm, GPay, super.money or any UPI app',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // RepaintBoundary QR Code Card for pixel-perfect save & share
+            Center(
+              child: RepaintBoundary(
+                key: _qrCardKey,
+                child: Container(
+                  width: 280,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 18,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Splitico Header Banner
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.account_balance_wallet_rounded,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Splitico UPI Payment',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // QR Code Widget
+                      QrImageView(
+                        data: upiPayload,
+                        version: QrVersions.auto,
+                        size: 200.0,
+                        backgroundColor: Colors.white,
+                        eyeStyle: const QrEyeStyle(
+                          eyeShape: QrEyeShape.square,
+                          color: Color(0xFF0F172A),
+                        ),
+                        dataModuleStyle: const QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.square,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Payee & Amount Info
+                      Text(
+                        '₹${widget.amount.toStringAsFixed(widget.amount % 1 == 0 ? 0 : 2)}',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Paying ${widget.name}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E293B),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          widget.upiId,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF475569),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 1. Pay via UPI App (Direct Intent to PhonePe, GPay, Paytm, super.money, CRED)
+            ElevatedButton.icon(
+              onPressed: _openUpiApp,
+              icon: const Icon(Icons.flash_on_rounded, size: 18),
+              label: Text(
+                'Pay ₹${widget.amount.toStringAsFixed(0)} via UPI App',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // 2. Save QR Code & Share & Pay Buttons Row
+            Row(
+              children: [
+                // Save QR Code
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isSaving ? null : _saveQrCode,
+                    icon: _isSaving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.download_rounded, size: 18),
+                    label: Text(
+                      _isSaving ? 'Saving...' : 'Save QR',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isDarkMode ? Colors.white : const Color(0xFF1E293B),
+                      side: BorderSide(
+                        color: isDarkMode ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                        width: 1.5,
+                      ),
+                      backgroundColor: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                      minimumSize: const Size(0, 46),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+
+                // Share & Pay
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isSharing ? null : _shareQrCode,
+                    icon: _isSharing
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.share_rounded, size: 18),
+                    label: Text(
+                      _isSharing ? 'Opening...' : 'Share & Pay',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary, width: 1.5),
+                      backgroundColor: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                      minimumSize: const Size(0, 46),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // 3. Mark as Paid button
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                UpiPaymentService._notifySettled(
+                  widget.parentContext,
+                  widget.name,
+                  widget.amount,
+                  'via QR Code 📲',
+                  widget.onSettled,
+                );
+              },
+              icon: const Icon(Icons.check_circle_rounded, size: 20),
+              label: const Text(
+                'Mark as Paid ✓',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.expensePositive,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+
+            // 4. Copy UPI ID Button
+            TextButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: widget.upiId));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Copied ${widget.upiId} to clipboard!'),
+                    duration: const Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.copy_rounded, size: 15),
+              label: Text(
+                'Copy ${widget.upiId}',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Manual UPI Sheet (Copy UPI ID & open external UPI app)
+class _ManualUpiSheet extends StatelessWidget {
+  final BuildContext parentContext;
+  final String name;
+  final double amount;
+  final String upiId;
+  final VoidCallback? onSettled;
+
+  const _ManualUpiSheet({
+    required this.parentContext,
+    required this.name,
+    required this.amount,
+    required this.upiId,
+    this.onSettled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSizes.xxl,
+        AppSizes.m,
+        AppSizes.xxl,
+        AppSizes.l,
+      ),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border.all(
+          color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            Text(
+              'Pay via UPI App',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: theme.colorScheme.onSurface,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Copy UPI ID and complete transfer in any UPI app',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Step 1: Copy UPI ID card
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'RECIPIENT UPI ID',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        ),
+                      ),
+                      Text(
+                        '₹${amount.toStringAsFixed(amount % 1 == 0 ? 0 : 2)}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          upiId,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: upiId));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Copied $upiId to clipboard!'),
+                              duration: const Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.copy_rounded, size: 15),
+                        label: const Text('Copy'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // How to pay steps
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDarkMode ? const Color(0xFF0F172A) : const Color(0xFFEEF2FF),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                children: [
+                  _buildStepRow(
+                    number: '1',
+                    text: 'Copy the UPI ID above',
+                    isDarkMode: isDarkMode,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildStepRow(
+                    number: '2',
+                    text: 'Open your UPI app (GPay, PhonePe, Paytm, etc.)',
+                    isDarkMode: isDarkMode,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildStepRow(
+                    number: '3',
+                    text: 'Paste the UPI ID and send ₹${amount.toStringAsFixed(0)}',
+                    isDarkMode: isDarkMode,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildStepRow(
+                    number: '4',
+                    text: 'Come back here and tap "Mark as Paid"',
+                    isDarkMode: isDarkMode,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Mark Paid Button
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                UpiPaymentService._notifySettled(
+                  parentContext,
+                  name,
+                  amount,
+                  'via UPI 📱',
+                  onSettled,
+                );
+              },
+              icon: const Icon(Icons.check_circle_rounded, size: 20),
+              label: const Text(
+                'I Have Paid via UPI ✓',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.expensePositive,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 52),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Track & Remind Later Button
+            OutlinedButton.icon(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await PaymentReminderService.trackPayment(
+                  recipientName: name,
+                  amount: amount,
+                  upiId: upiId,
+                );
+                if (parentContext.mounted) {
+                  ScaffoldMessenger.of(parentContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('Payment tracked! We will notify you to confirm ⏰ (up to 2 times)'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.access_time_rounded, size: 18),
+              label: const Text(
+                'Remind Me Later ⏰ (Track Payment)',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepRow({
+    required String number,
+    required String text,
+    required bool isDarkMode,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 20,
+          height: 20,
+          decoration: const BoxDecoration(
+            color: AppColors.primary,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            number,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isDarkMode ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Bank Transfer Dialog with copy functionality
 class _EditableBankTransferDialog extends StatefulWidget {
   final BuildContext parentContext;
   final String name;
@@ -1148,12 +1608,10 @@ class _EditableBankTransferDialog extends StatefulWidget {
   });
 
   @override
-  State<_EditableBankTransferDialog> createState() =>
-      _EditableBankTransferDialogState();
+  State<_EditableBankTransferDialog> createState() => _EditableBankTransferDialogState();
 }
 
-class _EditableBankTransferDialogState
-    extends State<_EditableBankTransferDialog> {
+class _EditableBankTransferDialogState extends State<_EditableBankTransferDialog> {
   late final TextEditingController _accountNameController;
   late final TextEditingController _accountNumberController;
   late final TextEditingController _ifscController;
@@ -1190,8 +1648,7 @@ class _EditableBankTransferDialogState
   }
 
   void _copyAllDetails() {
-    final text =
-        '''
+    final text = '''
 Account Holder: ${_accountNameController.text.trim()}
 Account Number: ${_accountNumberController.text.trim()}
 IFSC Code: ${_ifscController.text.trim().toUpperCase()}
@@ -1241,10 +1698,7 @@ Amount: ₹${widget.amount.toStringAsFixed(2)}
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color:
-                      isDarkMode
-                          ? const Color(0xFF475569)
-                          : const Color(0xFFCBD5E1),
+                  color: isDarkMode ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1273,10 +1727,7 @@ Amount: ₹${widget.amount.toStringAsFixed(2)}
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color:
-                              isDarkMode
-                                  ? const Color(0xFF94A3B8)
-                                  : const Color(0xFF64748B),
+                          color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -1323,11 +1774,10 @@ Amount: ₹${widget.amount.toStringAsFixed(2)}
               isDarkMode: isDarkMode,
               keyboardType: TextInputType.number,
               showCopy: true,
-              onCopy:
-                  () => _copyField(
-                    'Account number',
-                    _accountNumberController.text,
-                  ),
+              onCopy: () => _copyField(
+                'Account number',
+                _accountNumberController.text,
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -1421,22 +1871,17 @@ Amount: ₹${widget.amount.toStringAsFixed(2)}
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w700,
-            color:
-                isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
             letterSpacing: 0.5,
           ),
         ),
         const SizedBox(height: 4),
         Container(
           decoration: BoxDecoration(
-            color:
-                isDarkMode ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            color: isDarkMode ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color:
-                  isDarkMode
-                      ? const Color(0xFF334155)
-                      : const Color(0xFFE2E8F0),
+              color: isDarkMode ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
             ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1444,10 +1889,7 @@ Amount: ₹${widget.amount.toStringAsFixed(2)}
             children: [
               Icon(
                 icon,
-                color:
-                    isDarkMode
-                        ? const Color(0xFF64748B)
-                        : const Color(0xFF94A3B8),
+                color: isDarkMode ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
                 size: 18,
               ),
               const SizedBox(width: 10),
