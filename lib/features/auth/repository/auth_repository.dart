@@ -99,41 +99,4 @@ Future<AppUser> login({
     _currentUser = null;
     await SettlementStorageService.clearAll();
   }
-
-}
-
-class PhoneAuthResult {
-  final String? verificationId;
-  final AppUser? appUser;
-
-  PhoneAuthResult({this.verificationId, this.appUser});
-}
-
-Future<PhoneAuthResult> sendOtp({
-  required String phoneNumber,
-}) async {
-  debugPrint('Starting verifyPhoneNumber for $phoneNumber');
-  // Simulated network delay
-  await Future.delayed(const Duration(milliseconds: 800));
-  
-  // Return a mock verification ID
-  return PhoneAuthResult(verificationId: 'mock-verification-id-123');
-}
-
-Future<AppUser> verifyOtp({
-  required String verificationId,
-  required String otp,
-}) async {
-  // Simulated network delay
-  await Future.delayed(const Duration(milliseconds: 800));
-  
-  if (otp != '123456') {
-    throw Exception('Invalid OTP. Please use code 123456');
-  }
-
-  return AppUser(
-    uid: 'phone-mock-uid-123',
-    email: 'phone-user@splitico.com',
-    displayName: 'Phone User',
-  );
 }

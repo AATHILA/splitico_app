@@ -2,8 +2,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:splitico/core/bloc/base_bloc.dart';
-import 'package:splitico/features/auth/repository/auth_repository.dart'
-    as repository;
 import '../models/app_user.dart';
 import '../repository/auth_repository.dart';
 import 'auth_event.dart';
@@ -20,9 +18,6 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
     on<SignUpRequested>(_onSignUpRequested);
     on<SignOutRequested>(_onSignOutRequested);
     on<DeleteAccountRequested>(_onDeleteAccountRequested);
-    on<PhoneLoginRequested>(_onPhoneLoginRequested);
-    on<SendOtpRequested>(_onSendOtpRequested);
-    on<VerifyOtpRequested>(_onVerifyOtpRequested);
   }
 
   Future<void> _onAuthCheckRequested(
@@ -98,61 +93,5 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));
     }
   }
-
-  Future<void> _onPhoneLoginRequested(
-    PhoneLoginRequested event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(AuthLoading());
-    try {
-      // Simulate network request for OTP verification / sign in
-      await Future.delayed(const Duration(milliseconds: 1000));
-
-      final user = AppUser(
-        uid: 'phone-mock-uid-123',
-        email: '${event.phoneNumber.replaceAll(' ', '')}@splitico.com',
-        displayName: 'Phone User',
-      );
-      emit(AuthAuthenticated(user));
-    } catch (e) {
-      emit(AuthError(e.toString()));
-    }
-  }
-
-  Future<void> _onSendOtpRequested(
-    SendOtpRequested event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(AuthLoading());
-
-    try {
-      final result = await repository.sendOtp(phoneNumber: event.phoneNumber);
-      if (result.appUser != null) {
-        emit(AuthAuthenticated(result.appUser!));
-      } else if (result.verificationId != null) {
-        emit(OtpSent(result.verificationId!));
-      } else {
-        emit(const AuthError('Verification failed to initiate'));
-      }
-    } catch (e) {
-      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
-    }
-  }
-
-  Future<void> _onVerifyOtpRequested(
-    VerifyOtpRequested event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(AuthLoading());
-
-    try {
-      final appUser = await repository.verifyOtp(
-        verificationId: event.verificationId,
-        otp: event.otp,
-      );
-      emit(AuthAuthenticated(appUser));
-    } catch (e) {
-      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
-    }
-  }
 }
+

@@ -28,20 +28,3 @@ class AuthError extends AuthState {
   @override
   List<Object?> get props => [message];
 }
-
-class OtpSent extends AuthState {
-  final String verificationId;
-
-  const OtpSent(this.verificationId);
-
-  @override
-  List<Object?> get props => [verificationId];
-}
-
-class OtpVerified extends AuthState {}
-
-
-
-
-
-
