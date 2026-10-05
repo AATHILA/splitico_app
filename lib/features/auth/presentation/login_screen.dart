@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:splitico/core/constants/app_assets.dart';
 import 'package:splitico/core/constants/app_colors.dart';
 import 'package:splitico/core/constants/app_sizes.dart';
@@ -337,14 +338,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     // Continue with Google Button
                     OutlinedButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Continue with Google clicked'),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
+                      onPressed:
+                          isLoading
+                              ? null
+                              : () {
+                                context.read<AuthBloc>().add(
+                                  GoogleLoginRequested(),
+                                );
+                              },
                       style: OutlinedButton.styleFrom(
                         foregroundColor:
                             isDarkMode ? Colors.white : const Color(0xFF1E293B),
@@ -364,22 +365,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Container(
-                            width: 20,
-                            height: 20,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEA4335), // Google red
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: const Text(
-                              'G',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                          SvgPicture.asset(
+                            'assets/icons/google.svg',
+                            width: 22,
+                            height: 22,
                           ),
                           const SizedBox(width: AppSizes.m),
                           const Text(

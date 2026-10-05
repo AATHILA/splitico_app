@@ -33,3 +33,6 @@ class SignOutRequested extends AuthEvent {}
 
 class DeleteAccountRequested extends AuthEvent {}
 
+class GoogleLoginRequested extends AuthEvent {}
+
+

@@ -18,6 +18,7 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
     on<SignUpRequested>(_onSignUpRequested);
     on<SignOutRequested>(_onSignOutRequested);
     on<DeleteAccountRequested>(_onDeleteAccountRequested);
+    on<GoogleLoginRequested>(_onGoogleLoginRequested);
   }
 
   Future<void> _onAuthCheckRequested(
@@ -93,5 +94,19 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));
     }
   }
+
+Future<void> _onGoogleLoginRequested(
+  GoogleLoginRequested event,
+  Emitter<AuthState> emit,
+) async {
+  emit(AuthLoading());
+  try {
+    final user = await _authRepository.signInWithGoogle();
+    emit(AuthAuthenticated(user));
+  } catch (e) {
+    emit(AuthError(e.toString().replaceAll('Exception: ', '')));
+  }
+}
+
 }
 

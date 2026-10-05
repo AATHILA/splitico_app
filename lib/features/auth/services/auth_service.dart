@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:splitico/features/auth/presentation/login_screen.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final supabase = Supabase.instance.client;
@@ -41,17 +42,62 @@ class AuthService {
     }
   }
 
- Future<void> logout(BuildContext context) async {
-  try {
-    await supabase.auth.signOut();
-    if (!context.mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
-  } catch (e) {
-    print("Logout error $e");
+  Future<void> logout(BuildContext context) async {
+    try {
+      await supabase.auth.signOut();
+      try {
+        await GoogleSignIn().signOut();
+      } catch (_) {}
+      if (!context.mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    } catch (e) {
+      print("Logout error $e");
+    }
   }
- }
+
+  // Inside AuthService class:
+  Future<String?> signInWithGoogle() async {
+    try {
+      const webClientId =
+          '794278224451-avjottvmim5r2bu7cp08poqtddethj8b.apps.googleusercontent.com';
+
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        serverClientId: webClientId,
+      );
+
+      // Force show the account picker every time so user can choose their Gmail account
+      if (await googleSignIn.isSignedIn()) {
+        await googleSignIn.signOut();
+      }
+
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        return 'Google sign-in was cancelled';
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final accessToken = googleAuth.accessToken;
+      final idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        return 'No ID Token found from Google';
+      }
+
+      await supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+
+      return null; // Success
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return 'Error: $e';
+    }
+  }
 
   /// Completely delete user account and associated data from Supabase
   Future<void> deleteAccount() async {
@@ -80,9 +126,13 @@ class AuthService {
     // 3. Clear auth session locally
     try {
       await supabase.auth.signOut();
+      try {
+        await GoogleSignIn().signOut();
+      } catch (_) {}
     } catch (e) {
       debugPrint('[AuthService] Sign out after delete: $e');
     }
   }
 }
+
 

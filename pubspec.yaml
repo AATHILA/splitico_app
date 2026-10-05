@@ -49,6 +49,9 @@ dependencies:
   share_plus: ^13.3.0
   gal: ^2.3.3
   path_provider: ^2.1.6
+  google_sign_in: ^6.2.2
+  flutter_svg: ^2.0.17
+
   
 
 dev_dependencies:
@@ -78,6 +81,7 @@ flutter:
   assets:
     - .env
     - assets/images/
+    - assets/icons/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -121,7 +125,7 @@ flutter_native_splash:
   ios_content_mode: scaleAspectFit
   fullscreen: false
 
-  
+
   android_12:
     color: "#FFFFFF"
     icon_background_color: "#FFFFFF"

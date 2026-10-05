@@ -99,4 +99,29 @@ Future<AppUser> login({
     _currentUser = null;
     await SettlementStorageService.clearAll();
   }
+
+  Future<AppUser> signInWithGoogle() async {
+  final error = await _authService.signInWithGoogle();
+  if (error != null) {
+    throw Exception(error);
+  }
+
+  final sessionUser = _authService.supabase.auth.currentUser;
+  if (sessionUser == null) {
+    throw Exception('User session not found after Google sign-in');
+  }
+
+  _currentUser = AppUser(
+    uid: sessionUser.id,
+    email: sessionUser.email ?? '',
+    displayName: sessionUser.userMetadata?['full_name'] ??
+        sessionUser.userMetadata?['name'] ??
+        sessionUser.email?.split('@').first ??
+        'User',
+  );
+
+  return _currentUser!;
 }
+
+}
+
