@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:splitico/core/services/settlement_storage_service.dart';
 import 'package:splitico/features/auth/models/app_user.dart';
 import 'package:splitico/features/auth/services/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -92,6 +93,12 @@ Future<AppUser> login({
   await _authService.supabase.auth.signOut();
   _currentUser = null;
 }
+
+  Future<void> deleteAccount() async {
+    await _authService.deleteAccount();
+    _currentUser = null;
+    await SettlementStorageService.clearAll();
+  }
 
 }
 

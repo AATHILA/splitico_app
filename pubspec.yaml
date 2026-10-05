@@ -61,6 +61,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_native_splash: ^2.4.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -107,7 +108,21 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/logo.png"
+  image_path: "assets/images/logo_bright_blue.png"
   min_sdk_android: 21
-  adaptive_icon_background: "#18274A" # Dark blue color matching your logo background
-  adaptive_icon_foreground: "assets/images/logo.png"
+  adaptive_icon_background: "#3D3DF2"
+  adaptive_icon_foreground: "assets/images/logo_bright_blue.png"
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  color_dark: "#FFFFFF"
+  image: "assets/images/logo_bright_blue.png"
+  android_gravity: center
+  ios_content_mode: scaleAspectFit
+  fullscreen: false
+
+  
+  android_12:
+    color: "#FFFFFF"
+    icon_background_color: "#FFFFFF"
+    image: "assets/images/logo_bright_blue.png"

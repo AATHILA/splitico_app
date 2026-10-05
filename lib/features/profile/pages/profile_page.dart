@@ -532,9 +532,9 @@ class _ProfilePageState extends State<ProfilePage> {
           _buildSettingsRow(
             context: context,
             icon: Icons.help_outline_rounded,
-            iconColor: const Color(0xFFEF4444), // red question
+            iconColor: const Color(0xFF3B82F6), // blue question
             iconBgColor:
-                isDarkMode ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
+                isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
             title: 'Help & Support',
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -544,6 +544,22 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               );
             },
+            trailing: Icon(
+              Icons.chevron_right_rounded,
+              color: onSurface.withValues(alpha: 0.4),
+            ),
+          ),
+          _buildItemDivider(context),
+
+          // Row 3: Delete Account
+          _buildSettingsRow(
+            context: context,
+            icon: Icons.delete_outline_rounded,
+            iconColor:  onSurface,
+            iconBgColor:
+                isDarkMode ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                title: 'Delete Account',
+                         onTap: () => _showDeleteAccountConfirmationDialog(context, isDarkMode),
             trailing: Icon(
               Icons.chevron_right_rounded,
               color: onSurface.withValues(alpha: 0.4),
@@ -561,6 +577,7 @@ class _ProfilePageState extends State<ProfilePage> {
     required Color iconBgColor,
     required String title,
     required Widget trailing,
+    Color? titleColor,
     VoidCallback? onTap,
   }) {
     return InkWell(
@@ -591,7 +608,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: titleColor ?? Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),
@@ -637,6 +654,178 @@ class _ProfilePageState extends State<ProfilePage> {
         'Sign Out',
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
       ),
+    );
+  }
+
+
+  void _showDeleteAccountConfirmationDialog(BuildContext context, bool isDarkMode) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDarkMode
+                      ? const Color(0xFF7F1D1D).withValues(alpha: 0.4)
+                      : const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Color(0xFFDC2626),
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  'Delete Account',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: isDarkMode ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to permanently delete your account?',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isDarkMode ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDarkMode
+                      ? const Color(0xFF7F1D1D).withValues(alpha: 0.2)
+                      : const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isDarkMode
+                        ? const Color(0xFFEF4444).withValues(alpha: 0.25)
+                        : const Color(0xFFFEE2E2),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'This action cannot be undone:',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFDC2626),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildBulletItem(
+                      'Your user account will be completely removed from Supabase Auth.',
+                      isDarkMode,
+                    ),
+                    const SizedBox(height: 6),
+                    _buildBulletItem(
+                      'All groups, expenses, and split calculations created by you will be erased.',
+                      isDarkMode,
+                    ),
+                    const SizedBox(height: 6),
+                    _buildBulletItem(
+                      'All settlement and payment reminder records will be wiped permanently.',
+                      isDarkMode,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      side: BorderSide(
+                        color: isDarkMode ? const Color(0xFF475569) : const Color(0xFFCBD5E1),
+                      ),
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: isDarkMode ? Colors.white70 : const Color(0xFF475569),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                      context.read<AuthBloc>().add(DeleteAccountRequested());
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFDC2626),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text(
+                      'Delete Forever',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildBulletItem(String text, bool isDarkMode) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 5, right: 6),
+          child: Icon(Icons.circle, size: 5, color: Color(0xFFDC2626)),
+        ),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              height: 1.3,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

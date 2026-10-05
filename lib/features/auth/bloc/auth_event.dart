@@ -31,6 +31,8 @@ class SignUpRequested extends AuthEvent {
 
 class SignOutRequested extends AuthEvent {}
 
+class DeleteAccountRequested extends AuthEvent {}
+
 class PhoneLoginRequested extends AuthEvent {
   final String phoneNumber;
 

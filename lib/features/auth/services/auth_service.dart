@@ -51,7 +51,38 @@ class AuthService {
   } catch (e) {
     print("Logout error $e");
   }
+ }
+
+  /// Completely delete user account and associated data from Supabase
+  Future<void> deleteAccount() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) {
+      throw Exception('No authenticated user found.');
+    }
+
+    // 1. Proactively delete user-created groups from public schema
+    try {
+      await supabase.from('groups').delete().eq('created_by', user.id);
+    } catch (e) {
+      debugPrint('[AuthService] Proactive groups cleanup: $e');
+    }
+
+    // 2. Call Supabase RPC to completely remove user from auth.users
+    try {
+      await supabase.rpc('delete_user');
+    } catch (e) {
+      debugPrint('[AuthService] RPC delete_user error: $e');
+      throw Exception(
+        'Could not delete user account from Supabase: $e',
+      );
+    }
+
+    // 3. Clear auth session locally
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      debugPrint('[AuthService] Sign out after delete: $e');
+    }
+  }
 }
 
-
-}
