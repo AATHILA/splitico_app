@@ -51,6 +51,7 @@ dependencies:
   path_provider: ^2.1.6
   google_sign_in: ^6.2.2
   flutter_svg: ^2.0.17
+  mailer: ^7.2.0
 
   
 

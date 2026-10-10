@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:splitico/core/bloc/base_bloc.dart';
-import '../models/app_user.dart';
 import '../repository/auth_repository.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -62,7 +61,11 @@ class AuthBloc extends BaseBloc<AuthEvent, AuthState> {
         password: event.password,
         name: event.name,
       );
-      emit(AuthAuthenticated(user));
+      if (user == null) {
+        emit(AuthVerificationSent(email: event.email));
+      } else {
+        emit(AuthAuthenticated(user));
+      }
     } catch (e) {
       debugPrint("ERROR: $e");
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));

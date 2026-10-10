@@ -27,4 +27,11 @@ class AuthError extends AuthState {
 
   @override
   List<Object?> get props => [message];
+}class AuthVerificationSent extends AuthState {
+  final String email;
+
+  const AuthVerificationSent({required this.email});
+
+  @override
+  List<Object?> get props => [email];
 }

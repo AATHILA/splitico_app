@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:splitico/core/services/settlement_storage_service.dart';
 import 'package:splitico/features/auth/models/app_user.dart';
 import 'package:splitico/features/auth/services/auth_service.dart';
@@ -52,31 +51,28 @@ Future<AppUser> login({
 }
 
 
-  Future<AppUser> signup({
+  Future<AppUser?> signup({
     required String email,
     required String password,
     required String name,
   }) async {
-
-     // 1. Call the AuthService signup
-    final errorMessage = await _authService.signup(email, password,name);
- // 2. If an error is returned, throw an exception
-    if (errorMessage != null) {
-      throw Exception(errorMessage);
+    // 1. Call the AuthService signup
+    final result = await _authService.signup(email, password, name);
+    // 2. If an error is returned, throw an exception
+    if (result != null) {
+      throw Exception(result);
     }
 
- // 3. Retrieve the signed-up user from Supabase session
+    // 3. Retrieve the signed-up user from Supabase session
     final sessionUser = _authService.supabase.auth.currentUser;
     if (sessionUser == null) {
-      throw Exception('User session not found after signup');
+      throw Exception('User session not found');
     }
 
-
- // 4. Update the display name metadata in Supabase (optional, but recommended)
+    // 4. Update the display name metadata in Supabase (optional, but recommended)
     await _authService.supabase.auth.updateUser(
       UserAttributes(data: {'display_name': name}),
     );
-    
 
     // Simulated network delay
     await Future.delayed(const Duration(milliseconds: 800));
@@ -86,7 +82,7 @@ Future<AppUser> login({
       email: sessionUser.email ?? email,
       displayName: name,
     );
-    return _currentUser!;
+    return _currentUser;
   }
 
  Future<void> logout() async {

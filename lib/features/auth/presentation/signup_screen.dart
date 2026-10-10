@@ -1,11 +1,13 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:splitico/core/constants/app_colors.dart';
 import 'package:splitico/core/constants/app_sizes.dart';
+import 'package:splitico/core/services/email_service.dart';
 import 'package:splitico/features/home/pages/home_page.dart';
 import '../bloc/auth_bloc.dart';
-import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
+import 'otp_verification_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -20,6 +22,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isSendingOtp = false;
+
+  static const List<String> _disposableDomains = [
+    'mailinator.com',
+    'tempmail.com',
+    'guerrillamail.com',
+    '10minutemail.com',
+    'trashmail.com',
+    'yopmail.com',
+    'sharklasers.com',
+    'getairmail.com',
+    'dispostable.com',
+    'fakeinbox.com',
+  ];
 
   @override
   void dispose() {
@@ -29,15 +45,49 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  void _signUp() async{
+  void _signUp() async {
     if (_formKey.currentState?.validate() ?? false) {
       final name = _nameController.text.trim();
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      context.read<AuthBloc>().add(
-        SignUpRequested(name: name, email: email, password: password),
+      setState(() => _isSendingOtp = true);
+
+      // Generate random 6-digit OTP
+      final otp = (100000 + Random().nextInt(900000)).toString();
+
+      final sent = await EmailService().sendOtpEmail(
+        to: email,
+        otp: otp,
+        name: name,
       );
+
+      setState(() => _isSendingOtp = false);
+
+      if (!mounted) return;
+
+      if (sent) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => OtpVerificationScreen(
+              email: email,
+              name: name,
+              password: password,
+              initialOtp: otp,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Failed to send verification code. Please check your internet connection or email.',
+            ),
+            backgroundColor: AppColors.expenseNegative,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -249,14 +299,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                       decoration: _buildInputDecoration('Enter your email', isDarkMode),
                       validator: (value) {
-                        if (value == null || value.isEmpty) {
+                        if (value == null || value.trim().isEmpty) {
                           return 'Please enter your email';
                         }
-                        if (!RegExp(
-                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                        ).hasMatch(value)) {
-                          return 'Please enter a valid email';
+
+                        final email = value.trim().toLowerCase();
+
+                        // 1. Strict regex check
+                        final emailRegex = RegExp(
+                          r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+                        );
+                        if (!emailRegex.hasMatch(email)) {
+                          return 'Please enter a valid email address';
                         }
+
+                        // 2. Block disposable domains
+                        final domain = email.split('@').last;
+                        if (_disposableDomains.contains(domain)) {
+                          return 'Disposable/temporary emails are not allowed';
+                        }
+
                         return null;
                       },
                     ),
@@ -304,7 +366,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     // Create Account Button
                     ElevatedButton(
-                      onPressed: isLoading ? null : _signUp,
+                      onPressed: (isLoading || _isSendingOtp) ? null : _signUp,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -315,7 +377,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                       ),
                       child:
-                          isLoading
+                          (isLoading || _isSendingOtp)
                               ? const SizedBox(
                                 height: 20,
                                 width: 20,

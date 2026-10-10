@@ -125,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(width: AppSizes.m),
                         const Text(
-                          'Splitiko',
+                          'Splitico',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,

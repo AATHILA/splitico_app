@@ -11,7 +11,7 @@ class AuthService {
     try {
       final response = await supabase.auth.signUp(
         password: password,
-        email: email,
+        email: email.trim(),
         data: {'display_name': name}, 
       );
       if (response.user != null) {
@@ -133,6 +133,43 @@ class AuthService {
       debugPrint('[AuthService] Sign out after delete: $e');
     }
   }
+
+  Future<String?> resendVerificationEmail(String email) async {
+  try {
+    await supabase.auth.resend(
+      type: OtpType.signup,
+      email: email.trim(),
+    );
+    return null; // Success
+  } on AuthException catch (e) {
+    return e.message;
+  } catch (e) {
+    return "Error: $e";
+  }
+}
+
+Future<String?> verifyOtp({
+  required String email,
+  required String token,
+}) async {
+  try {
+    final response = await supabase.auth.verifyOTP(
+      email: email.trim(),
+      token: token.trim(),
+      type: OtpType.signup,
+    );
+
+    if (response.user != null && response.session != null) {
+      return null; // Success: Email confirmed & session active!
+    }
+    return "Verification failed";
+  } on AuthException catch (e) {
+    return e.message;
+  } catch (e) {
+    return "Error: $e";
+  }
+}
+
 }
 
 
