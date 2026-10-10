@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:splitico/core/services/preferences_service.dart';
 import 'package:splitico/core/services/settlement_storage_service.dart';
 import 'package:splitico/features/auth/models/app_user.dart';
 import 'package:splitico/features/auth/services/auth_service.dart';
@@ -44,6 +45,7 @@ Future<AppUser> login({
       email: user.email ?? email,
       displayName: user.userMetadata?['display_name'] ?? email.split('@').first,
     );
+    await PreferencesService().setBool(PreferencesService.keyIsLoggedIn, true);
     return _currentUser!;
   } catch (e) {
     throw Exception(e.toString());
@@ -82,12 +84,14 @@ Future<AppUser> login({
       email: sessionUser.email ?? email,
       displayName: name,
     );
+    await PreferencesService().setBool(PreferencesService.keyIsLoggedIn, true);
     return _currentUser;
   }
 
  Future<void> logout() async {
   await _authService.supabase.auth.signOut();
   _currentUser = null;
+  await PreferencesService().setBool(PreferencesService.keyIsLoggedIn, false);
 }
 
   Future<void> deleteAccount() async {
@@ -115,6 +119,7 @@ Future<AppUser> login({
         sessionUser.email?.split('@').first ??
         'User',
   );
+  await PreferencesService().setBool(PreferencesService.keyIsLoggedIn, true);
 
   return _currentUser!;
 }

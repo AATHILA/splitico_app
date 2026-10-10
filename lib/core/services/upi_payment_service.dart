@@ -7,7 +7,6 @@ import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
 import '../services/payment_reminder_service.dart';
@@ -814,45 +813,6 @@ class _ReceiverQrCodeSheetState extends State<_ReceiverQrCodeSheet> {
     }
   }
 
-  Future<void> _openUpiApp() async {
-    final upiPayload = UpiPaymentService.buildUriString(
-      upiId: widget.upiId,
-      name: widget.name,
-      amount: widget.amount,
-      note: 'Splitico Settlement',
-    );
-    final uri = Uri.parse(upiPayload);
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        Clipboard.setData(ClipboardData(text: widget.upiId));
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Copied ${widget.upiId} to clipboard. Open PhonePe, Paytm, GPay, or super.money to pay!',
-              ),
-              backgroundColor: Colors.orange.shade800,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('Error launching UPI: $e');
-      Clipboard.setData(ClipboardData(text: widget.upiId));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Copied ${widget.upiId} to clipboard.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
-  }
-
   Future<void> _saveQrCode() async {
     if (_isSaving) return;
     setState(() => _isSaving = true);
@@ -1146,26 +1106,6 @@ class _ReceiverQrCodeSheetState extends State<_ReceiverQrCodeSheet> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // 1. Pay via UPI App (Direct Intent to PhonePe, GPay, Paytm, super.money, CRED)
-            ElevatedButton.icon(
-              onPressed: _openUpiApp,
-              icon: const Icon(Icons.flash_on_rounded, size: 18),
-              label: Text(
-                'Pay ₹${widget.amount.toStringAsFixed(0)} via UPI App',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
 
             // 2. Save QR Code & Share & Pay Buttons Row
             Row(

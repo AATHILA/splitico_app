@@ -102,6 +102,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildHeaderWithStats(BuildContext context, double topPadding) {
     return BlocBuilder<AuthBloc, AuthState>(
+      buildWhen: (previous, current) => current is AuthAuthenticated,
+    
       builder: (context, authState) {
         String displayName = 'User';
         String email = 'No email provided';
@@ -629,8 +631,10 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildSignOutButton(BuildContext context, bool isDarkMode) {
+    final isLoading = context.watch<AuthBloc>().state is AuthLoading;
     return OutlinedButton(
-      onPressed: () {
+      onPressed: isLoading
+        ? null : () {
         context.read<AuthBloc>().add(SignOutRequested());
       },
       style: OutlinedButton.styleFrom(
@@ -650,7 +654,17 @@ class _ProfilePageState extends State<ProfilePage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         elevation: 0,
       ),
-      child: const Text(
+      child: isLoading
+        ? const SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEF4444)),
+            ),
+          )
+        
+      : const Text(
         'Sign Out',
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
       ),

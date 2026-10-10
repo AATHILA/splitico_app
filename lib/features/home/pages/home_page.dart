@@ -6,6 +6,7 @@ import 'package:splitico/core/models/group.dart';
 import 'package:splitico/core/models/expense.dart';
 import 'package:splitico/core/theme/text_styles.dart';
 import 'package:splitico/features/auth/bloc/auth_bloc.dart';
+import 'package:splitico/features/auth/bloc/auth_event.dart';
 import 'package:splitico/features/auth/bloc/auth_state.dart';
 import 'package:splitico/features/group/bloc/group_bloc.dart';
 import 'package:splitico/features/group/bloc/group_state.dart';
@@ -39,7 +40,9 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    // Refresh the groups list for the currently logged-in user
+    // Refresh user and groups
+  context.read<AuthBloc>().add(AuthCheckRequested());
+
     context.read<GroupBloc>().add(LoadGroups());
   }
 
@@ -150,8 +153,9 @@ class _HomePageState extends State<HomePage> {
     switch (_currentTabIndex) {
       case 0:
         return BlocBuilder<AuthBloc, AuthState>(
+           buildWhen: (previous, current) => current is AuthAuthenticated,
           builder: (context, authState) {
-            String displayName = 'Rahul Kumar';
+            String displayName = 'User';
             if (authState is AuthAuthenticated && authState.user != null) {
               displayName = authState.user!.resolvedDisplayName;
               // Capitalize name nicely
