@@ -10,6 +10,7 @@ import 'package:splitico/features/auth/bloc/auth_event.dart';
 import 'package:splitico/features/auth/bloc/auth_state.dart';
 import 'package:splitico/features/group/bloc/group_bloc.dart';
 import 'package:splitico/features/group/bloc/group_state.dart';
+import 'package:splitico/features/home/pages/widgets/home_page_skeleton.dart';
 import 'package:splitico/features/home/widgets/balance_card.dart';
 import 'package:splitico/features/home/widgets/group_chip.dart';
 import 'package:splitico/features/home/widgets/expense_card.dart';
@@ -25,6 +26,8 @@ import 'package:splitico/features/profile/pages/my_qr_code_page.dart';
 import 'package:splitico/features/settlement/pages/qr_scanner_page.dart';
 import 'package:splitico/core/services/payment_reminder_service.dart';
 import 'package:splitico/core/services/settlement_storage_service.dart';
+
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -168,7 +171,7 @@ class _HomePageState extends State<HomePage> {
             return BlocBuilder<GroupBloc, GroupState>(
               builder: (context, groupState) {
                 if (groupState is GroupsLoading) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const HomePageSkeleton();
                 }
                 if (groupState is GroupsError) {
                   return Center(

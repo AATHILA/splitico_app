@@ -10,7 +10,7 @@ import 'package:splitico/features/group/repository/group_repository.dart';
 import 'package:splitico/features/auth/bloc/auth_bloc.dart';
 import 'package:splitico/features/auth/repository/auth_repository.dart';
 import 'package:splitico/features/auth/presentation/login_screen.dart';
-import 'package:splitico/features/home/pages/home_page.dart';
+import 'package:splitico/features/home/pages/widgets/home_page.dart';
 import 'package:splitico/core/services/payment_reminder_service.dart';
 import 'package:splitico/core/services/settlement_storage_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
