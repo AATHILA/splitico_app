@@ -8,7 +8,6 @@ import '../../../core/services/payment_reminder_service.dart';
 import '../../../core/services/upi_payment_service.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_state.dart';
-import '../../../core/widgets/shimmer_loading.dart';
 
 class MyQrCodePage extends StatefulWidget {
   const MyQrCodePage({super.key});
@@ -114,51 +113,7 @@ class _MyQrCodePageState extends State<MyQrCodePage> {
     if (_isLoading) {
       return Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: Icon(
-              Icons.arrow_back_rounded,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          title: Text(
-            'My QR Code',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-        ),
-        body: Center(
-          child: ShimmerLoading(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SkeletonBox(width: 56, height: 56, borderRadius: 28),
-                  SizedBox(height: 14),
-                  SkeletonBox(width: 140, height: 16, borderRadius: 4),
-                  SizedBox(height: 8),
-                  SkeletonBox(width: 90, height: 12, borderRadius: 4),
-                  SizedBox(height: 24),
-                  SkeletonBox(width: 200, height: 200, borderRadius: 16),
-                  SizedBox(height: 20),
-                  SkeletonBox(width: 150, height: 12, borderRadius: 4),
-                ],
-              ),
-            ),
-          ),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 

@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:splitico/core/constants/app_colors.dart';
 import 'package:splitico/core/constants/app_sizes.dart';
 import 'package:splitico/core/services/email_service.dart';
-import 'package:splitico/features/home/pages/widgets/home_page.dart';
+import 'package:splitico/features/home/pages/home_page.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_state.dart';
 import 'otp_verification_screen.dart';

@@ -11,8 +11,6 @@ import '../bloc/group_state.dart';
 import 'create_group_page.dart';
 import 'group_details_page.dart';
 
-import 'widgets/groups_page_skeleton.dart';
-
 class GroupsPage extends StatefulWidget {
   const GroupsPage({super.key});
 
@@ -48,13 +46,6 @@ class _GroupsPageState extends State<GroupsPage> {
 
         return BlocBuilder<GroupBloc, GroupState>(
           builder: (context, state) {
-            if (state is GroupsLoading) {
-              return const Scaffold(
-                body: SafeArea(
-                  child: GroupsPageSkeleton(),
-                ),
-              );
-            }
             List<GroupModel> groupsList = [];
             if (state is GroupsLoaded) {
               groupsList = state.groups;

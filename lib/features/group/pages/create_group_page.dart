@@ -278,7 +278,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                 child: Text(
                   widget.groupToEdit != null
                       ? 'Save Changes'
-                      : 'Create Group',
+                      : 'Create Group 🎉',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,

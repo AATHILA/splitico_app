@@ -4,7 +4,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:splitico/core/constants/app_assets.dart';
 import 'package:splitico/core/constants/app_colors.dart';
 import 'package:splitico/core/constants/app_sizes.dart';
-import 'package:splitico/features/home/pages/widgets/home_page.dart';
+import 'package:splitico/features/home/pages/home_page.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';

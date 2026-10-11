@@ -9,7 +9,6 @@ import '../../auth/bloc/auth_state.dart';
 import '../../group/bloc/group_bloc.dart';
 import '../../group/bloc/group_state.dart';
 import 'settlement_detail_page.dart';
-import 'widgets/balances_page_skeleton.dart';
 
 class BalancesPage extends StatelessWidget {
   const BalancesPage({super.key});
@@ -31,9 +30,6 @@ class BalancesPage extends StatelessWidget {
         }
         return BlocBuilder<GroupBloc, GroupState>(
           builder: (context, groupState) {
-            if (groupState is GroupsLoading) {
-              return const BalancesPageSkeleton();
-            }
             List<GroupModel> groups = [];
             if (groupState is GroupsLoaded) {
               groups = groupState.groups;

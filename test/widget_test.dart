@@ -11,7 +11,7 @@ void main() {
     await tester.pumpWidget(
       BlocProvider(
         create: (_) => AuthBloc(AuthRepository()),
-        child: const MyApp(isLoggedIn: false),
+        child: const MyApp(),
       ),
     );
 
@@ -25,7 +25,7 @@ void main() {
     await tester.pumpWidget(
       BlocProvider(
         create: (_) => AuthBloc(AuthRepository()),
-        child: const MyApp(isLoggedIn: false),
+        child: const MyApp(),
       ),
     );
 

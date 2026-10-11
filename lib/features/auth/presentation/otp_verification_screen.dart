@@ -9,7 +9,7 @@ import 'package:splitico/core/services/email_service.dart';
 import 'package:splitico/features/auth/bloc/auth_bloc.dart';
 import 'package:splitico/features/auth/bloc/auth_event.dart';
 import 'package:splitico/features/auth/services/auth_service.dart';
-import 'package:splitico/features/home/pages/widgets/home_page.dart';
+import 'package:splitico/features/home/pages/home_page.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String email;
