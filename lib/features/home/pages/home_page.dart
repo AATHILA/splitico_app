@@ -198,10 +198,7 @@ class _HomePageState extends State<HomePage> {
                 final recentExpenses = allRecentExpenses;
 
                 // 3. Calculate dynamic balances
-
-                double totalYouOwe = 0.0;
-                double totalOwedToYou = 0.0;
-
+                final Map<String, double> memberBalances = {};
                 for (var group in groups) {
                   for (var expense in group.expenses) {
                     final splitMembers =
@@ -218,17 +215,18 @@ class _HomePageState extends State<HomePage> {
                             displayName.toLowerCase();
 
                     if (isPaidByMe) {
-                      final amIInSplit = splitMembers.any(
-                        (m) =>
-                            m['name'].toString().toLowerCase() == 'you' ||
-                            m['name'].toString().toLowerCase() ==
-                                displayName.toLowerCase(),
-                      );
-
-                      if (amIInSplit) {
-                        totalOwedToYou += expense.amount - individualShare;
-                      } else {
-                        totalOwedToYou += expense.amount;
+                      for (var splitMember in splitMembers) {
+                        final rawName = splitMember['name'] as String;
+                        final memberName =
+                            rawName.toLowerCase() == 'you'
+                                ? displayName
+                                : rawName;
+                        if (memberName.toLowerCase() !=
+                            displayName.toLowerCase()) {
+                          memberBalances[memberName] =
+                              (memberBalances[memberName] ?? 0.0) +
+                              individualShare;
+                        }
                       }
                     } else {
                       final amIInSplit = splitMembers.any(
@@ -238,11 +236,29 @@ class _HomePageState extends State<HomePage> {
                                 displayName.toLowerCase(),
                       );
                       if (amIInSplit) {
-                        totalYouOwe += individualShare;
+                        memberBalances[expense.paidBy] =
+                            (memberBalances[expense.paidBy] ?? 0.0) -
+                            individualShare;
                       }
                     }
                   }
                 }
+
+                double totalYouOwe = 0.0;
+                double totalOwedToYou = 0.0;
+
+                memberBalances.forEach((member, rawBal) {
+                  final settled = SettlementStorageService.getNetSettledAmount(
+                    displayName,
+                    member,
+                  );
+                  final bal = rawBal + settled;
+                  if (bal > 0.01) {
+                    totalOwedToYou += bal;
+                  } else if (bal < -0.01) {
+                    totalYouOwe += bal.abs();
+                  }
+                });
 
                 final netBalance = totalOwedToYou - totalYouOwe;
                 final activeGroups = groups

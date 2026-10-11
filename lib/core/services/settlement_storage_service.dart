@@ -59,6 +59,7 @@ class SettlementStorageService {
 
   static Set<String> _cachedIds = {};
   static Set<String> _cachedMembers = {};
+  static List<SettlementRecord> _cachedRecords = [];
   static bool _isLoaded = false;
 
   /// Ensures cache is loaded from SharedPreferences
@@ -71,6 +72,18 @@ class SettlementStorageService {
 
       final savedMembers = prefs.getStringList(_settledMembersKey) ?? [];
       _cachedMembers = savedMembers.toSet();
+
+      final savedRecords = prefs.getStringList(_settledRecordsKey) ?? [];
+      _cachedRecords = savedRecords
+          .map((r) {
+            try {
+              return SettlementRecord.fromJson(jsonDecode(r));
+            } catch (_) {
+              return null;
+            }
+          })
+          .whereType<SettlementRecord>()
+          .toList();
 
       _isLoaded = true;
       settledIdsNotifier.value = Set.from(_cachedIds);
@@ -103,6 +116,40 @@ class SettlementStorageService {
   static Future<bool> isSettled(String id) async {
     await init();
     return _cachedIds.contains(id);
+  }
+
+  /// Returns the net settlement amount paid between two users.
+  /// Positive if user1 paid user2, negative if user2 paid user1.
+  static double getNetSettledAmount(String user1, String user2) {
+    final u1 = _normalize(user1);
+    final u2 = _normalize(user2);
+    double total = 0.0;
+    for (var r in _cachedRecords) {
+      if (!r.isSettled) continue;
+      final from = _normalize(r.fromName);
+      final to = _normalize(r.toName);
+      if (from == u1 && to == u2) {
+        total += r.amount;
+      } else if (from == u2 && to == u1) {
+        total -= r.amount;
+      }
+    }
+    return total;
+  }
+
+  /// Returns all settlement records between user1 and user2
+  static List<SettlementRecord> getSettlementRecordsBetween(
+    String user1,
+    String user2,
+  ) {
+    final u1 = _normalize(user1);
+    final u2 = _normalize(user2);
+    return _cachedRecords.where((r) {
+      if (!r.isSettled) return false;
+      final from = _normalize(r.fromName);
+      final to = _normalize(r.toName);
+      return (from == u1 && to == u2) || (from == u2 && to == u1);
+    }).toList();
   }
 
   /// Marks a specific transaction ID as paid/settled forever
@@ -155,9 +202,11 @@ class SettlementStorageService {
             return false;
           }
         });
+        _cachedRecords.removeWhere((r) => r.id == id);
 
         if (settled) {
           recordsJson.add(jsonEncode(newRecord.toJson()));
+          _cachedRecords.add(newRecord);
         }
 
         await prefs.setStringList(_settledRecordsKey, recordsJson);
@@ -167,6 +216,46 @@ class SettlementStorageService {
     }
 
     settledIdsNotifier.value = Set.from(_cachedIds);
+  }
+
+  /// Unmarks/removes the latest settlement between user1 and user2
+  static Future<void> unmarkLatestSettlement(
+    String user1,
+    String user2,
+  ) async {
+    await init();
+    final u1 = _normalize(user1);
+    final u2 = _normalize(user2);
+    final prefs = await SharedPreferences.getInstance();
+
+    final recordsJson = prefs.getStringList(_settledRecordsKey) ?? [];
+    int? indexToRemove;
+    for (int i = recordsJson.length - 1; i >= 0; i--) {
+      try {
+        final decoded = jsonDecode(recordsJson[i]) as Map<String, dynamic>;
+        final from = _normalize(decoded['fromName'] ?? '');
+        final to = _normalize(decoded['toName'] ?? '');
+        if ((from == u1 && to == u2) || (from == u2 && to == u1)) {
+          indexToRemove = i;
+          break;
+        }
+      } catch (_) {}
+    }
+
+    if (indexToRemove != null) {
+      recordsJson.removeAt(indexToRemove);
+      await prefs.setStringList(_settledRecordsKey, recordsJson);
+      _cachedRecords = recordsJson
+          .map((r) {
+            try {
+              return SettlementRecord.fromJson(jsonDecode(r));
+            } catch (_) {
+              return null;
+            }
+          })
+          .whereType<SettlementRecord>()
+          .toList();
+    }
   }
 
   /// Checks if a 1-on-1 settlement between user and member is marked as settled
@@ -190,37 +279,90 @@ class SettlementStorageService {
     return _cachedMembers.contains(key) || _cachedMembers.contains(reverseKey);
   }
 
-  /// Marks a member-to-member settlement as paid/settled forever
+  /// Marks a member-to-member settlement as paid
   static Future<void> markMemberSettled({
     required String currentUserName,
     required String memberName,
     bool isSettled = true,
     double? amount,
     String? method,
+    bool isOwed = false,
   }) async {
     await init();
-    final key = _buildMemberKey(currentUserName, memberName);
+    final payer = isOwed ? memberName : currentUserName;
+    final payee = isOwed ? currentUserName : memberName;
+    final key = _buildMemberKey(payer, payee);
     final prefs = await SharedPreferences.getInstance();
 
     if (isSettled) {
       _cachedMembers.add(key);
     } else {
       _cachedMembers.remove(key);
-      _cachedMembers.remove(_buildMemberKey(memberName, currentUserName));
+      _cachedMembers.remove(_buildMemberKey(payee, payer));
     }
 
     await prefs.setStringList(_settledMembersKey, _cachedMembers.toList());
 
-    // Also persist with a synthesized ID
-    final synthId = 'member_${_normalize(currentUserName)}_${_normalize(memberName)}';
-    await markSettled(
-      synthId,
-      settled: isSettled,
-      fromName: currentUserName,
-      toName: memberName,
-      amount: amount,
-      method: method,
-    );
+    if (!isSettled) {
+      await unmarkLatestSettlement(payer, payee);
+    } else {
+      final synthId =
+          'member_${_normalize(payer)}_${_normalize(payee)}_${DateTime.now().millisecondsSinceEpoch}';
+      await markSettled(
+        synthId,
+        settled: true,
+        fromName: payer,
+        toName: payee,
+        amount: amount,
+        method: method,
+      );
+    }
+  }
+
+  /// When a new expense is added or modified in a group, unmark any previous settlement
+  /// between the members so the group and balances become active again.
+  static Future<void> unmarkGroupSettled(
+    GroupModel group, [
+    String? currentUserName,
+  ]) async {
+    await init();
+    final prefs = await SharedPreferences.getInstance();
+
+    final List<String> names = [];
+    for (var m in group.members) {
+      final name = _normalize(m['name'] as String? ?? '');
+      if (name.isNotEmpty) {
+        names.add(name);
+        if (name == 'you' && currentUserName != null && currentUserName.isNotEmpty) {
+          names.add(_normalize(currentUserName));
+        }
+      }
+    }
+    if (currentUserName != null && currentUserName.isNotEmpty) {
+      names.add(_normalize(currentUserName));
+    }
+
+    for (int i = 0; i < names.length; i++) {
+      for (int j = 0; j < names.length; j++) {
+        if (i != j) {
+          final m1 = names[i];
+          final m2 = names[j];
+          _cachedMembers.remove(_buildMemberKey(m1, m2));
+          _cachedMembers.remove(_buildMemberKey(m2, m1));
+
+          _cachedIds.removeWhere((id) =>
+              id.contains('${m1}_$m2') ||
+              id.contains('${m2}_$m1') ||
+              id.startsWith('member_${m1}_$m2') ||
+              id.startsWith('member_${m2}_$m1'));
+        }
+      }
+    }
+
+    await prefs.setStringList(_settledMembersKey, _cachedMembers.toList());
+    await prefs.setStringList(_settledIdsKey, _cachedIds.toList());
+
+    settledIdsNotifier.value = Set.from(_cachedIds);
   }
 
   /// Checks if all expenses and debts in a group have been completely settled
@@ -256,6 +398,20 @@ class SettlementStorageService {
       }
     }
 
+    // Adjust netBalances with recorded settlements between members
+    final names = netBalances.keys.toList();
+    for (int i = 0; i < names.length; i++) {
+      for (int j = i + 1; j < names.length; j++) {
+        final p1 = names[i];
+        final p2 = names[j];
+        final settled = getNetSettledAmount(p1, p2);
+        if (settled != 0) {
+          netBalances[p1] = (netBalances[p1] ?? 0.0) + settled;
+          netBalances[p2] = (netBalances[p2] ?? 0.0) - settled;
+        }
+      }
+    }
+
     final List<MapEntry<String, double>> debtors = [];
     final List<MapEntry<String, double>> creditors = [];
 
@@ -266,6 +422,10 @@ class SettlementStorageService {
         creditors.add(MapEntry(person, balance));
       }
     });
+
+    if (debtors.isEmpty && creditors.isEmpty) {
+      return true;
+    }
 
     debtors.sort((a, b) => b.value.compareTo(a.value));
     creditors.sort((a, b) => b.value.compareTo(a.value));
@@ -335,13 +495,7 @@ class SettlementStorageService {
             rawName.toLowerCase() == 'you' ? normCurrent : rawName,
           );
           if (memberName != normCurrent) {
-            final isSettled = isMemberSettledSync(
-              currentUserName: normCurrent,
-              memberName: memberName,
-            );
-            if (!isSettled) {
-              totalOwedToYou += individualShare;
-            }
+            totalOwedToYou += individualShare;
           }
         }
       } else {
@@ -353,18 +507,19 @@ class SettlementStorageService {
               normCurrent;
         });
         if (amIInSplit) {
-          final isSettled = isMemberSettledSync(
-            currentUserName: normCurrent,
-            memberName: payer,
-          );
-          if (!isSettled) {
-            totalYouOwe += individualShare;
-          }
+          totalYouOwe += individualShare;
         }
       }
     }
 
-    return totalOwedToYou - totalYouOwe;
+    double balance = totalOwedToYou - totalYouOwe;
+    for (var m in group.members) {
+      final mName = _normalize(m['name'] as String? ?? '');
+      if (mName.isNotEmpty && mName != normCurrent && mName != 'you') {
+        balance += getNetSettledAmount(normCurrent, mName);
+      }
+    }
+    return balance;
   }
 
   /// Clear all stored settlements
