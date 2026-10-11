@@ -378,7 +378,7 @@ class BalancesPage extends StatelessWidget {
           : isOwed
           ? (isDarkMode ? const Color(0xFF34D399) : const Color(0xFF059669))
           : (isDarkMode ? const Color(0xFFF87171) : const Color(0xFFEF4444));
-      final amountSign = isSettled ? '✓' : (isOwed ? '→' : '←');
+      final amountSign = isSettled ? '✓' : (isOwed ? '←' : '→');
       final amountText = isSettled
           ? 'Paid ✓'
           : '₹${balance.abs().toStringAsFixed(0)} $amountSign';

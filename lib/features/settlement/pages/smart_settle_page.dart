@@ -21,6 +21,8 @@ class SmartSettlementTransaction {
   final Color toColor;
   final double amount;
   final String upiId;
+  final String? groupName;
+  final String? groupId;
 
   SmartSettlementTransaction({
     required this.id,
@@ -32,6 +34,8 @@ class SmartSettlementTransaction {
     required this.toColor,
     required this.amount,
     required this.upiId,
+    this.groupName,
+    this.groupId,
   });
 }
 
@@ -76,11 +80,17 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
     );
   }
 
-  void _handleUnsettle(String id, String toName) {
+  void _handleUnsettle(String id, String toName, {String? legacyId}) {
     setState(() {
       _settledCardIds.remove(id);
+      if (legacyId != null) {
+        _settledCardIds.remove(legacyId);
+      }
     });
     SettlementStorageService.markSettled(id, settled: false);
+    if (legacyId != null) {
+      SettlementStorageService.markSettled(legacyId, settled: false);
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Settlement with $toName unmarked.'),
@@ -88,6 +98,13 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  bool _isTransactionSettled(SmartSettlementTransaction tx) {
+    final legacyId =
+        '${tx.fromName}_${tx.toName}_${tx.amount.toStringAsFixed(2)}';
+    return _settledCardIds.contains(tx.id) ||
+        _settledCardIds.contains(legacyId);
   }
 
   static String _normalizeName(String name, String currentUserName) {
@@ -119,53 +136,58 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
     required Map<String, Map<String, dynamic>> metadataOut,
     required ValueNotifier<int> rawCountOut,
   }) {
-    final Map<String, double> netBalances = {};
-    int rawCount = 0;
+    int totalRawCount = 0;
     int colorIdx = 0;
+    final List<SmartSettlementTransaction> allTransactions = [];
 
-    // Helper to find real UPI ID from any group member list
-    String findUpiId(String personName) {
-      for (var g in groups) {
-        for (var m in g.members) {
-          final mName = _normalizeName(m['name'] as String, currentUserName);
-          if (mName.toLowerCase() == personName.toLowerCase()) {
-            final upi = m['upiId']?.toString().trim();
-            if (upi != null && upi.isNotEmpty) {
-              return upi;
-            }
+    // Helper to find real UPI ID from a specific group's member list
+    String findUpiIdInGroup(GroupModel g, String personName) {
+      for (var m in g.members) {
+        final mName = _normalizeName(m['name'] as String, currentUserName);
+        if (mName.toLowerCase() == personName.toLowerCase()) {
+          final upi = m['upiId']?.toString().trim();
+          if (upi != null && upi.isNotEmpty) {
+            return upi;
           }
         }
       }
       return '';
     }
 
-    // 1. Extract member metadata
+    // Process each group independently to preserve group privacy and isolation
     for (var g in groups) {
+      final Map<String, double> netBalances = {};
+      final Map<String, Map<String, dynamic>> groupMetadata = {};
+
+      // 1. Extract member metadata for this group
       for (var member in g.members) {
         final rawName = member['name'] as String;
         final normalizedName = _normalizeName(rawName, currentUserName);
         final rawUpi = member['upiId']?.toString().trim();
         final effectiveUpi = (rawUpi != null && rawUpi.isNotEmpty)
             ? rawUpi
-            : findUpiId(normalizedName);
+            : findUpiIdInGroup(g, normalizedName);
 
+        final meta = {
+          'initial':
+              member['initial'] ??
+              (normalizedName.isNotEmpty
+                  ? normalizedName[0].toUpperCase()
+                  : '?'),
+          'color': _getAvatarColor(
+            colorIdx++,
+            member['avatarBgColor'] ?? member['color'],
+          ),
+          'upiId': effectiveUpi,
+        };
+
+        groupMetadata[normalizedName] = meta;
         if (!metadataOut.containsKey(normalizedName)) {
-          metadataOut[normalizedName] = {
-            'initial':
-                member['initial'] ??
-                (normalizedName.isNotEmpty
-                    ? normalizedName[0].toUpperCase()
-                    : '?'),
-            'color': _getAvatarColor(
-              colorIdx++,
-              member['avatarBgColor'] ?? member['color'],
-            ),
-            'upiId': effectiveUpi,
-          };
+          metadataOut[normalizedName] = meta;
         }
       }
 
-      // 2. Process all expenses to compute net balances
+      // 2. Process all expenses strictly within this group
       for (var expense in g.expenses) {
         final splitMembers =
             expense.splitBetween.where((m) => m['selected'] == true).toList();
@@ -174,12 +196,16 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
         final individualShare = expense.amount / splitMembers.length;
         final payer = _normalizeName(expense.paidBy, currentUserName);
 
-        if (!metadataOut.containsKey(payer)) {
-          metadataOut[payer] = {
+        if (!groupMetadata.containsKey(payer)) {
+          final meta = {
             'initial': payer.isNotEmpty ? payer[0].toUpperCase() : '?',
             'color': _getAvatarColor(colorIdx++, null),
-            'upiId': findUpiId(payer),
+            'upiId': findUpiIdInGroup(g, payer),
           };
+          groupMetadata[payer] = meta;
+          if (!metadataOut.containsKey(payer)) {
+            metadataOut[payer] = meta;
+          }
         }
 
         for (var splitMember in splitMembers) {
@@ -187,101 +213,107 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
             splitMember['name'] as String,
             currentUserName,
           );
-          if (!metadataOut.containsKey(memberName)) {
-            metadataOut[memberName] = {
+          if (!groupMetadata.containsKey(memberName)) {
+            final meta = {
               'initial':
                   memberName.isNotEmpty ? memberName[0].toUpperCase() : '?',
               'color': _getAvatarColor(colorIdx++, splitMember['color']),
-              'upiId': findUpiId(memberName),
+              'upiId': findUpiIdInGroup(g, memberName),
             };
+            groupMetadata[memberName] = meta;
+            if (!metadataOut.containsKey(memberName)) {
+              metadataOut[memberName] = meta;
+            }
           }
 
           if (memberName.toLowerCase() != payer.toLowerCase()) {
-            rawCount++;
+            totalRawCount++;
             netBalances[payer] = (netBalances[payer] ?? 0.0) + individualShare;
             netBalances[memberName] =
                 (netBalances[memberName] ?? 0.0) - individualShare;
           }
         }
       }
+
+      // 3. Separate Debtors and Creditors within THIS group
+      final List<MapEntry<String, double>> debtors = [];
+      final List<MapEntry<String, double>> creditors = [];
+
+      netBalances.forEach((person, balance) {
+        if (balance < -0.01) {
+          debtors.add(MapEntry(person, -balance));
+        } else if (balance > 0.01) {
+          creditors.add(MapEntry(person, balance));
+        }
+      });
+
+      // 4. Sort descending to minimize transaction paths within this group
+      debtors.sort((a, b) => b.value.compareTo(a.value));
+      creditors.sort((a, b) => b.value.compareTo(a.value));
+
+      int dIndex = 0;
+      int cIndex = 0;
+
+      List<double> dBalances = debtors.map((e) => e.value).toList();
+      List<double> cBalances = creditors.map((e) => e.value).toList();
+
+      while (dIndex < debtors.length && cIndex < creditors.length) {
+        final debtor = debtors[dIndex].key;
+        final creditor = creditors[cIndex].key;
+        final dAmount = dBalances[dIndex];
+        final cAmount = cBalances[cIndex];
+
+        final settledAmount = (dAmount < cAmount ? dAmount : cAmount);
+        if (settledAmount > 0.01) {
+          final debtorMeta =
+              groupMetadata[debtor] ??
+              metadataOut[debtor] ??
+              {
+                'initial': debtor.isNotEmpty ? debtor[0].toUpperCase() : '?',
+                'color': const Color(0xFF7C3AED),
+              };
+          final creditorMeta =
+              groupMetadata[creditor] ??
+              metadataOut[creditor] ??
+              {
+                'initial':
+                    creditor.isNotEmpty ? creditor[0].toUpperCase() : '?',
+                'color': const Color(0xFF4C49ED),
+                'upiId': findUpiIdInGroup(g, creditor),
+              };
+
+          final creditorUpiId =
+              (creditorMeta['upiId']?.toString().trim().isNotEmpty ?? false)
+                  ? creditorMeta['upiId'].toString().trim()
+                  : findUpiIdInGroup(g, creditor);
+
+          allTransactions.add(
+            SmartSettlementTransaction(
+              id: '${g.id}_${debtor}_${creditor}_${settledAmount.toStringAsFixed(2)}',
+              fromName: debtor,
+              fromInitial: debtorMeta['initial'],
+              fromColor: debtorMeta['color'],
+              toName: creditor,
+              toInitial: creditorMeta['initial'],
+              toColor: creditorMeta['color'],
+              amount: settledAmount,
+              upiId: creditorUpiId,
+              groupName: g.name,
+              groupId: g.id,
+            ),
+          );
+        }
+
+        dBalances[dIndex] -= settledAmount;
+        cBalances[cIndex] -= settledAmount;
+
+        if (dBalances[dIndex] <= 0.01) dIndex++;
+        if (cBalances[cIndex] <= 0.01) cIndex++;
+      }
     }
 
-    rawCountOut.value = rawCount;
-
-    // 3. Separate Debtors (net < 0) and Creditors (net > 0)
-    final List<MapEntry<String, double>> debtors = [];
-    final List<MapEntry<String, double>> creditors = [];
-
-    netBalances.forEach((person, balance) {
-      if (balance < -0.01) {
-        debtors.add(MapEntry(person, -balance));
-      } else if (balance > 0.01) {
-        creditors.add(MapEntry(person, balance));
-      }
-    });
-
-    // 4. Sort descending to minimize transaction paths
-    debtors.sort((a, b) => b.value.compareTo(a.value));
-    creditors.sort((a, b) => b.value.compareTo(a.value));
-
-    final List<SmartSettlementTransaction> transactions = [];
-    int dIndex = 0;
-    int cIndex = 0;
-
-    List<double> dBalances = debtors.map((e) => e.value).toList();
-    List<double> cBalances = creditors.map((e) => e.value).toList();
-
-    while (dIndex < debtors.length && cIndex < creditors.length) {
-      final debtor = debtors[dIndex].key;
-      final creditor = creditors[cIndex].key;
-      final dAmount = dBalances[dIndex];
-      final cAmount = cBalances[cIndex];
-
-      final settledAmount = (dAmount < cAmount ? dAmount : cAmount);
-      if (settledAmount > 0.01) {
-        final debtorMeta =
-            metadataOut[debtor] ??
-            {
-              'initial': debtor.isNotEmpty ? debtor[0].toUpperCase() : '?',
-              'color': const Color(0xFF7C3AED),
-            };
-        final creditorMeta =
-            metadataOut[creditor] ??
-            {
-              'initial':
-                  creditor.isNotEmpty ? creditor[0].toUpperCase() : '?',
-              'color': const Color(0xFF4C49ED),
-              'upiId': findUpiId(creditor),
-            };
-
-        final creditorUpiId =
-            (creditorMeta['upiId']?.toString().trim().isNotEmpty ?? false)
-                ? creditorMeta['upiId'].toString().trim()
-                : findUpiId(creditor);
-
-        transactions.add(
-          SmartSettlementTransaction(
-            id: '${debtor}_${creditor}_${settledAmount.toStringAsFixed(2)}',
-            fromName: debtor,
-            fromInitial: debtorMeta['initial'],
-            fromColor: debtorMeta['color'],
-            toName: creditor,
-            toInitial: creditorMeta['initial'],
-            toColor: creditorMeta['color'],
-            amount: settledAmount,
-            upiId: creditorUpiId,
-          ),
-        );
-      }
-
-      dBalances[dIndex] -= settledAmount;
-      cBalances[cIndex] -= settledAmount;
-
-      if (dBalances[dIndex] <= 0.01) dIndex++;
-      if (cBalances[cIndex] <= 0.01) cIndex++;
-    }
-
-    return transactions;
+    rawCountOut.value = totalRawCount;
+    return allTransactions;
   }
 
   @override
@@ -497,7 +529,7 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final totalPlans = transactions.length;
     final settledCount =
-        transactions.where((t) => _settledCardIds.contains(t.id)).length;
+        transactions.where((t) => _isTransactionSettled(t)).length;
     final allSettled = totalPlans > 0 && settledCount >= totalPlans;
 
     String headline;
@@ -584,7 +616,7 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final totalPlans = transactions.length;
     final settledCount =
-        transactions.where((t) => _settledCardIds.contains(t.id)).length;
+        transactions.where((t) => _isTransactionSettled(t)).length;
     final allSettled = totalPlans > 0 && settledCount >= totalPlans;
 
     if (transactions.isEmpty) {
@@ -639,15 +671,18 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
       padding: EdgeInsets.only(bottom: 24 + bottomPadding),
       children: [
         ...transactions.map((tx) {
-          final isSettled = _settledCardIds.contains(tx.id);
+          final isSettled = _isTransactionSettled(tx);
           final formattedAmount =
               tx.amount % 1 == 0
                   ? '₹${tx.amount.toInt()}'
                   : '₹${tx.amount.toStringAsFixed(2)}';
+          final legacyId =
+              '${tx.fromName}_${tx.toName}_${tx.amount.toStringAsFixed(2)}';
 
           return _buildPlanCard(
             context: context,
             id: tx.id,
+            legacyId: legacyId,
             fromName: tx.fromName,
             fromInitial: tx.fromInitial,
             fromColor: tx.fromColor,
@@ -660,6 +695,7 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
             showActions: true,
             isSettled: isSettled,
             currentUserName: currentUserName,
+            groupName: tx.groupName,
           );
         }),
         const SizedBox(height: AppSizes.m),
@@ -745,6 +781,7 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
   Widget _buildPlanCard({
     required BuildContext context,
     required String id,
+    String? legacyId,
     required String fromName,
     required String fromInitial,
     required Color fromColor,
@@ -757,6 +794,7 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
     required bool isSettled,
     required String upiId,
     required String currentUserName,
+    String? groupName,
   }) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final isUserPayer =
@@ -783,6 +821,48 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Group Tag Badge (shown when settling across all groups)
+          if (groupName != null &&
+              groupName.isNotEmpty &&
+              widget.group == null) ...[
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isDarkMode
+                        ? AppColors.primary.withValues(alpha: 0.2)
+                        : AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.groups_rounded,
+                        size: 13,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        groupName,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+
           // Header Row: [A] Athila  →  [R] Rahul          ₹500
           Row(
             children: [
@@ -869,7 +949,7 @@ class _SmartSettlePageState extends State<SmartSettlePage> {
             if (isSettled)
               // When Marked Paid: Filled with blue color exact like the Pay button
               ElevatedButton.icon(
-                onPressed: () => _handleUnsettle(id, toName),
+                onPressed: () => _handleUnsettle(id, toName, legacyId: legacyId),
                 icon: const Icon(Icons.check_circle_rounded, size: 16),
                 label: const Text(
                   'Paid ✓',
