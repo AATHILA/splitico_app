@@ -8,6 +8,7 @@ import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_state.dart';
 import '../../group/bloc/group_bloc.dart';
 import '../../group/bloc/group_state.dart';
+import 'smart_settle_page.dart';
 import 'settlement_detail_page.dart';
 
 class BalancesPage extends StatelessWidget {
@@ -112,23 +113,17 @@ class BalancesPage extends StatelessWidget {
                   }
                 }
 
-                // Adjust memberBalances with recorded settlements
-                memberBalances.keys.toList().forEach((member) {
-                  final settled = SettlementStorageService.getNetSettledAmount(
-                    displayName,
-                    member,
-                  );
-                  memberBalances[member] =
-                      (memberBalances[member] ?? 0.0) + settled;
-                });
-
                 // Calculate totals
                 double totalYouOwe = 0.0;
                 double totalOwedToYou = 0.0;
                 int pendingSettlementsCount = 0;
 
                 memberBalances.forEach((member, balance) {
-                  final isSettled = balance.abs() < 0.01;
+                  final isSettled =
+                      SettlementStorageService.isMemberSettledSync(
+                        currentUserName: displayName,
+                        memberName: member,
+                      );
                   if (balance > 0.01) {
                     if (!isSettled) {
                       totalOwedToYou += balance;
@@ -526,6 +521,40 @@ class BalancesPage extends StatelessWidget {
             ),
           );
         }),
+        const SizedBox(height: AppSizes.m),
+
+        // Settle All Button
+        ElevatedButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SmartSettlePage()),
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(double.infinity, 54),
+            elevation: 2,
+            shadowColor: AppColors.primary.withValues(alpha: 0.3),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '✨ Settle All with Smart Split',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.1,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

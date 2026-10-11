@@ -45,9 +45,9 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
       currentUserName: widget.currentUserDisplayName,
       memberName: widget.memberName,
     );
-    if (mounted) {
+    if (mounted && settled) {
       setState(() {
-        _isSettled = settled;
+        _isSettled = true;
       });
     }
   }
@@ -56,13 +56,11 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
     setState(() {
       _isSettled = true;
     });
-    final isOwed = widget.netBalance > 0.01;
     SettlementStorageService.markMemberSettled(
       currentUserName: widget.currentUserDisplayName,
       memberName: widget.memberName,
       isSettled: true,
       amount: widget.netBalance.abs(),
-      isOwed: isOwed,
     );
   }
 
@@ -70,13 +68,11 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
     setState(() {
       _isSettled = false;
     });
-    final isOwed = widget.netBalance > 0.01;
     SettlementStorageService.markMemberSettled(
       currentUserName: widget.currentUserDisplayName,
       memberName: widget.memberName,
       isSettled: false,
       amount: widget.netBalance.abs(),
-      isOwed: isOwed,
     );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -149,31 +145,6 @@ class _SettlementDetailPageState extends State<SettlementDetailPage> {
         }
       }
     }
-
-    final settlements = SettlementStorageService.getSettlementRecordsBetween(
-      widget.currentUserDisplayName,
-      widget.memberName,
-    );
-    for (var s in settlements) {
-      final isYouPaid = s.fromName.trim().toLowerCase() ==
-          widget.currentUserDisplayName.trim().toLowerCase();
-      breakdown.add({
-        'expense': ExpenseModel(
-          title: 'Payment Settled',
-          amount: s.amount,
-          paidBy: s.fromName,
-          splitType: 'Equal',
-          splitBetween: [
-            {'name': s.toName, 'selected': true}
-          ],
-          dateTime: s.settledAt,
-        ),
-        'groupName': 'Payment',
-        'isYouPaid': isYouPaid,
-        'shareAmount': s.amount,
-      });
-    }
-
     return breakdown;
   }
 

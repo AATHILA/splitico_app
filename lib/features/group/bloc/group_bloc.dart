@@ -1,6 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:splitico/core/models/group.dart';
-import '../../../core/services/settlement_storage_service.dart';
 import '../repository/group_repository.dart';
 import 'group_event.dart';
 import 'group_state.dart';
@@ -84,9 +83,6 @@ class GroupBloc extends Bloc<GroupEvent, GroupState> {
           
           await _groupRepository.updateGroup(event.groupId, updatedGroup);
           
-          // Re-activate group and unmark settled status for its members
-          await SettlementStorageService.unmarkGroupSettled(updatedGroup);
-
           final updatedGroups = currentState.groups.map((group) {
             return group.id == event.groupId ? updatedGroup : group;
           }).toList();
@@ -117,9 +113,6 @@ class GroupBloc extends Bloc<GroupEvent, GroupState> {
           );
 
           await _groupRepository.updateGroup(event.groupId, updatedGroup);
-          
-          // Invalidate settlement cache so updated expenses reactivate balances
-          await SettlementStorageService.unmarkGroupSettled(updatedGroup);
 
           final updatedGroups = currentState.groups.map((group) {
             return group.id == event.groupId ? updatedGroup : group;
@@ -151,9 +144,6 @@ class GroupBloc extends Bloc<GroupEvent, GroupState> {
           );
 
           await _groupRepository.updateGroup(event.groupId, updatedGroup);
-          
-          // Invalidate settlement cache
-          await SettlementStorageService.unmarkGroupSettled(updatedGroup);
 
           final updatedGroups = currentState.groups.map((group) {
             return group.id == event.groupId ? updatedGroup : group;

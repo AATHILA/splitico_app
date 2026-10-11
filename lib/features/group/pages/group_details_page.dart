@@ -11,7 +11,7 @@ import '../bloc/group_bloc.dart';
 import '../bloc/group_state.dart';
 import '../bloc/group_event.dart';
 import 'create_group_page.dart';
-import '../../settlement/pages/balances_page.dart';
+import '../../settlement/pages/smart_settle_page.dart';
 
 class GroupDetailsPage extends StatelessWidget {
   final GroupModel group;
@@ -799,7 +799,7 @@ class GroupDetailsPage extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const BalancesPage(),
+                    builder: (context) => SmartSettlePage(group: currentGroup),
                   ),
                 );
               },
