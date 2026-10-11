@@ -13,6 +13,8 @@ import '../bloc/group_event.dart';
 import 'create_group_page.dart';
 import '../../settlement/pages/balances_page.dart';
 
+import 'widgets/group_details_skeleton.dart';
+
 class GroupDetailsPage extends StatelessWidget {
   final GroupModel group;
   const GroupDetailsPage({super.key, required this.group});
@@ -21,6 +23,9 @@ class GroupDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<GroupBloc, GroupState>(
       builder: (context, state) {
+        if (state is GroupsLoading) {
+          return const GroupDetailsSkeleton();
+        }
         GroupModel currentGroup = group;
         if (state is GroupsLoaded) {
           currentGroup = state.groups.firstWhere(

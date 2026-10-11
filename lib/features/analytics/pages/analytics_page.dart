@@ -9,6 +9,7 @@ import '../../auth/bloc/auth_bloc.dart';
 import '../../auth/bloc/auth_state.dart';
 import '../../group/bloc/group_bloc.dart';
 import '../../group/bloc/group_state.dart';
+import 'widgets/analytics_page_skeleton.dart';
 
 enum AnalyticsPeriod { thisMonth, allTime }
 enum CategoryChartType { donut, bar, list }
@@ -87,9 +88,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             return BlocBuilder<GroupBloc, GroupState>(
               builder: (context, groupState) {
                 if (groupState is GroupsLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  );
+                  return const AnalyticsPageSkeleton();
                 }
 
                 if (groupState is GroupsError) {
